@@ -23,7 +23,7 @@ Selecting a use case starts its setup. Check its dashboard for configuration, pe
 ## 3. Configure Ads MCP
 
 1. Open the app in the developer dashboard and select **Create & manage ads with ads MCP server**.
-2. Follow the use-case setup and check the permissions shown in the dashboard.
+2. Open the use case's permissions and features list. Check that `ads_mcp_management` and `ads_read` are listed and note their status. **Ready for testing** indicates a testing stage; the token, asset access and actual connection must still be verified.
 3. In Meta Business Settings, open **Integrations → Ads MCP server** and review the actions allowed for the intended ad account.
 4. Choose an authentication method supported by the MCP client. Meta documents OAuth, user access tokens and employee-role system-user access tokens. Its server URL is `https://mcp.facebook.com/ads`.
 5. For a token connection, Meta specifies `ads_mcp_management` and either `ads_read` or `ads_management` as minimum permissions. Assign the appropriate ad account access to the user or system user.
