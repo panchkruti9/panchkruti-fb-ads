@@ -1,54 +1,55 @@
-# Panchkruti Meta app setup
+# Meta app setup guide
 
 Last updated: 4 November 2026
 
-## Project
+This guide covers a client-owned Meta app for ads, social content and business messaging. Screens and requirements can vary by account and use case.
 
-Panchkruti will use this integration for its own Facebook and Instagram ads, social media content, and WhatsApp. The app is intended to belong to Panchkruti's business portfolio. The developer will help set it up for the client.
+## 1. Prepare access
 
-The private GitHub repository is https://github.com/panchkruti9/panchkruti-fb-ads.
+1. Identify the client's business portfolio and the assets the app will use.
+2. Have an authorized client administrator create or select the app under the client's portfolio.
+3. Give the developer the appropriate app and business asset roles. Confirm the client retains administrative access.
 
-## Meta assets
+## 2. Create the app
 
-- Business portfolio shown in Meta settings: **panchkruti**.
-- Ad account shown: **Panchkruti Ads**, ID `210757768577022`.
-- The Ads MCP server settings showed **7 of 7 actions allowed** for this account. This setting alone does not establish a connection.
+1. Sign in at [Meta for Developers](https://developers.facebook.com/apps/).
+2. Select **Create App** and complete developer registration if prompted.
+3. Select the needed use cases. The options can include **Create & manage ads with Marketing API**, **Measure ad performance data with Marketing API**, **Create & manage ads with ads MCP server**, **Manage everything on your Page**, **Manage messaging & content on Instagram**, **Connect with customers through WhatsApp**, and **Engage with customers on Messenger from Meta**.
+4. Enter the requested app details and select the client's business portfolio when prompted.
+5. Create the app. Record its name and app ID in the client's private project notes, and verify the intended portfolio is associated.
 
-## App creation
+Selecting a use case starts its setup. Check its dashboard for configuration, permissions, verification and review requirements.
 
-The user is on the use-case selection screen. The following selections were visible in the screenshot:
+## 3. Configure Ads MCP
 
-- Create & manage ads with Marketing API
-- Measure ad performance data with Marketing API
-- Create & manage ads with ads MCP server
-- Engage with customers on Messenger from Meta
-- Manage messaging & content on Instagram
-- Manage everything on your Page
-- Connect with customers through WhatsApp
+1. Open the app in the developer dashboard and select **Create & manage ads with ads MCP server**.
+2. Follow the use-case setup and check the permissions shown in the dashboard.
+3. In Meta Business Settings, open **Integrations → Ads MCP server** and review the actions allowed for the intended ad account.
+4. Choose an authentication method supported by the MCP client. Meta documents OAuth, user access tokens and employee-role system-user access tokens. Its server URL is `https://mcp.facebook.com/ads`.
+5. For a token connection, Meta specifies `ads_mcp_management` and either `ads_read` or `ads_management` as minimum permissions. Assign the appropriate ad account access to the user or system user.
+6. Connect the client, then list ad accounts and read campaign performance. Verify the account and date range.
 
-Messenger is included in the current selection. Confirm its intended use as the setup progresses.
+An app is not required for every Ads MCP connection. Codex automatic registration previously returned `invalid_client_metadata` in one test. A compatible connection still needs to be verified.
 
-**Current step:** Continue from the use-case selection screen. If prompted, select Panchkruti's business portfolio. App creation, app ID, ownership and permissions have not yet been verified.
+## 4. Configure social content and messaging
 
-## Ads MCP connection
+1. Open each selected use case in the app dashboard.
+2. Follow Meta's setup for the client's Facebook Page, Instagram professional account, Messenger and WhatsApp account as applicable.
+3. Review permissions, app roles and asset assignments for each feature.
+4. Check the dashboard for business verification, app review or other requirements. These vary with the permissions, access level and use case.
+5. Test each feature separately with the intended client-owned account. Record the results and restrictions in private project notes.
 
-Meta hosts the Ads MCP server at `https://mcp.facebook.com/ads`. Codex's automatic OAuth registration was attempted and failed with `invalid_client_metadata`. No working connection has been verified.
+WhatsApp contact links and automated WhatsApp messaging have different setup needs. Confirm the intended workflow before configuring messaging.
 
-Meta's setup guide says owning an app is not a prerequisite for all MCP connections. For a connection using an app's token, Meta documents the **Create & manage ads with ads MCP server** use case and requires `ads_mcp_management` plus `ads_read` or `ads_management`. Only employee-role system-user tokens are supported for Ads MCP. The exact connection method and permissions for this project remain to be tested.
+## 5. Store credentials and set up automation
 
-First connection test: list ad accounts and read campaign performance. Campaign changes and budget automation remain to be defined and tested.
+1. Keep passwords, access tokens and app secrets out of source files, documentation and chat.
+2. For GitHub Actions workflows, store required credentials under **Settings → Secrets and variables → Actions** in the relevant repository.
+3. Add and test the workflow that consumes the secret. Saving a secret alone does not connect the app or enable automation.
+4. Verify read access before testing campaign creation or changes. Review the budget and delivery settings before activating an ad.
 
-## Verification and WhatsApp
-
-Business verification and app review requirements depend on the features, permissions, access level and account setup. They have not been confirmed for this project. Check the app dashboard and WhatsApp setup for actual requirements before treating any review as complete.
-
-The intended WhatsApp workflow, including whether to automate customer messages, has not yet been specified.
-
-## Credentials
-
-Keep access tokens, app secrets and passwords out of this document and Git. If a GitHub Actions workflow is added, configure its credential as a GitHub Actions secret.
-
-## References
+## Official references
 
 - [Meta Ads MCP overview](https://developers.facebook.com/documentation/ads-commerce/ads-ai-connectors/ads-mcp-server/ads-mcp-server-overview)
 - [Meta Ads MCP setup](https://developers.facebook.com/documentation/ads-commerce/ads-ai-connectors/ads-mcp-server/ads-mcp-server-get-started)
+- [GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)
