@@ -70,6 +70,14 @@ jobs:
           if not isinstance(result.get("result", {}).get("tools"), list):
               raise SystemExit("Meta did not return an MCP tool list.")
           print("Meta Ads MCP authentication succeeded and its tools are available.")
-          for tool in result["result"]["tools"]:
-              print("Available tool:", tool.get("name", ""))
+          result, _ = call({
+              "jsonrpc": "2.0",
+              "id": 3,
+              "method": "tools/call",
+              "params": {"name": "ads_get_ad_accounts", "arguments": {}},
+          }, session)
+          if "error" in result or result.get("result", {}).get("isError"):
+              print("Account access failed:", json.dumps(result))
+              raise SystemExit(1)
+          print("Account access response:", json.dumps(result.get("result", {})))
           PY
