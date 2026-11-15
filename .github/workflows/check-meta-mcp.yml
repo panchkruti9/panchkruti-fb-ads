@@ -70,5 +70,6 @@ jobs:
           if not isinstance(result.get("result", {}).get("tools"), list):
               raise SystemExit("Meta did not return an MCP tool list.")
           print("Meta Ads MCP authentication succeeded and its tools are available.")
-          print("Ad-account access has not yet been tested.")
+          for tool in result["result"]["tools"]:
+              print("Available tool:", tool.get("name", ""))
           PY
