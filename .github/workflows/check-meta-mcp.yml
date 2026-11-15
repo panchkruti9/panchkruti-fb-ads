@@ -1,0 +1,74 @@
+name: Check Meta Ads MCP connection
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check token and list MCP tools
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          token = os.environ.get("META_ACCESS_TOKEN")
+          if not token:
+              raise SystemExit("Add the META_ACCESS_TOKEN repository secret first.")
+
+          headers = {
+              "Authorization": "Bearer " + token,
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+          }
+
+          def call(payload, session=None):
+              request_headers = dict(headers)
+              if session:
+                  request_headers["Mcp-Session-Id"] = session
+              request = urllib.request.Request(
+                  "https://mcp.facebook.com/ads",
+                  data=json.dumps(payload).encode(),
+                  headers=request_headers,
+                  method="POST",
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      body = response.read().decode()
+                      session_id = response.headers.get("Mcp-Session-Id")
+                      content_type = response.headers.get("Content-Type", "")
+              except urllib.error.HTTPError as error:
+                  raise SystemExit(f"Meta returned HTTP {error.code}. Check token access and permissions.")
+
+              if "text/event-stream" in content_type:
+                  messages = [line[5:].strip() for line in body.splitlines() if line.startswith("data:")]
+                  body = messages[-1] if messages else ""
+              return (json.loads(body) if body else {}, session_id)
+
+          result, session = call({
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                  "protocolVersion": "2025-03-26",
+                  "capabilities": {},
+                  "clientInfo": {"name": "panchkruti-connection-check", "version": "1.0"},
+              },
+          })
+          if "result" not in result:
+              raise SystemExit("Meta did not accept MCP initialization.")
+          call({"jsonrpc": "2.0", "method": "notifications/initialized"}, session)
+          result, _ = call({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}, session)
+          if not isinstance(result.get("result", {}).get("tools"), list):
+              raise SystemExit("Meta did not return an MCP tool list.")
+          print("Meta Ads MCP authentication succeeded and its tools are available.")
+          print("Ad-account access has not yet been tested.")
+          PY
