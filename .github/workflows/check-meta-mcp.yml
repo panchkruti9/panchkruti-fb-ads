@@ -69,6 +69,9 @@ jobs:
           result, _ = call({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}, session)
           if not isinstance(result.get("result", {}).get("tools"), list):
               raise SystemExit("Meta did not return an MCP tool list.")
+          for tool in result["result"]["tools"]:
+              if tool.get("name") in ("ads_get_ad_entities", "ads_insights_performance_trend"):
+                  print("Tool schema:", json.dumps(tool.get("inputSchema", {})), "name:", tool["name"])
           print("Meta Ads MCP authentication succeeded and its tools are available.")
           result, _ = call({
               "jsonrpc": "2.0",
