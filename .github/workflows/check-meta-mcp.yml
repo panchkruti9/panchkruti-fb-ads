@@ -79,23 +79,5 @@ jobs:
           if "error" in result or result.get("result", {}).get("isError"):
               print("Account access failed:", json.dumps(result))
               raise SystemExit(1)
-          print("Account access response:", json.dumps(result.get("result", {})))
-          conversation_id = result.get("result", {}).get("structuredContent", {}).get("client_conversation_id")
-          arguments = {
-              "ad_account_id": "210757768577022",
-              "level": "campaign",
-              "date_preset": "last_7d",
-          }
-          if conversation_id:
-              arguments["client_conversation_id"] = conversation_id
-          result, _ = call({
-              "jsonrpc": "2.0",
-              "id": 4,
-              "method": "tools/call",
-              "params": {"name": "ads_get_ad_entities", "arguments": arguments},
-          }, session)
-          if "error" in result or result.get("result", {}).get("isError"):
-              print("Campaign read failed:", json.dumps(result))
-              raise SystemExit(1)
-          print("Campaign read response:", json.dumps(result.get("result", {})))
+          print("Account access check returned without an error.")
           PY

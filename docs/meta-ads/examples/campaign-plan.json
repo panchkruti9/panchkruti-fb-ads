@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "id": "example-acquisition",
+  "account_id": "100",
+  "currency": "INR",
+  "minor_per_unit": 100,
+  "target": {"type": "campaign", "id": "200"},
+  "budget": {"max_daily_minor": 80000, "scale_step_minor": 10000},
+  "review": {
+    "metric": "cost_per_result", "metric_source": "store_first_orders",
+    "target": 50000, "minimum_results": 10, "days": 7,
+    "conversion_lag_days": 2, "cooldown_days": 7, "reversal_target": 60000,
+    "result_basis": {
+      "campaign_key": "utm_campaign=agi-example-acquisition",
+      "attribution_model": "last non-direct click by order date",
+      "result_definition": "Paid first orders with the matching campaign, excluding cancellations and refunds",
+      "time_zone": "UTC"
+    }
+  },
+  "decisions": {
+    "campaign_objectives": {
+      "status": "decided", "reason": "Optimize toward the checkout outcome used to judge acquisition.",
+      "details": {"outcome": "Acquire first-time customers within the CPA target in review.",
+                  "objective_and_event": "Website Sales with Purchase."},
+      "evidence": ["Fictional example: acquisition brief and checkout event record."]
+    },
+    "audience_research": {
+      "status": "decided", "reason": "Show first-time buyers what to expect from the routine.",
+      "details": {"buyer": "First-time skincare buyers comparing simple routines.",
+                  "motivation": "A routine that fits their daily schedule.",
+                  "barrier": "Uncertainty about what is included and how to use it."},
+      "evidence": ["Fictional example: interview summary on first-order questions."]
+    },
+    "customer_journey": {
+      "status": "decided", "reason": "Carry the routine message from ad to checkout.",
+      "details": {"message": "See how the two steps fit together.",
+                  "proof": "Show the package contents and application instructions.",
+                  "next_action": "Open the product page and review the bundle."},
+      "evidence": ["Fictional example: creative outline and landing-page review."]
+    },
+    "campaign_architecture": {
+      "status": "decided", "reason": "One acquisition job has enough budget for one campaign.",
+      "details": {"campaign_role": "Website customer acquisition.", "budget_owner": "Campaign."},
+      "evidence": ["Fictional example: approved media plan."]
+    },
+    "audience_targeting": {
+      "status": "decided", "reason": "Use eligible shipping geography as the main control.",
+      "details": {"eligible_market": "India.", "audience_controls": "Adults, with no additional audience exclusions."},
+      "evidence": ["Fictional example: shipping coverage and audience plan."]
+    },
+    "ad_set_structure": {
+      "status": "decided", "reason": "Avoid splitting limited acquisition volume.",
+      "details": {"delivery_groups": "One broad website acquisition ad set.",
+                  "grouping_reason": "One offer, destination, and optimization event."},
+      "evidence": ["Fictional example: initial spend and result forecast."]
+    },
+    "creative_and_copy": {
+      "status": "decided", "reason": "Lead with how the two products are used.",
+      "details": {"creative_concepts": "Routine demonstration.",
+                  "product_and_claim_review": "Use actual packs and usage instructions with no efficacy claim.",
+                  "destination": "https://example.com/offer"},
+      "evidence": ["Fictional example: package review, asset rights, and preflight notes."]
+    },
+    "budget_allocation": {
+      "status": "decided", "reason": "Fund the only acquisition campaign within its cap.",
+      "details": {"allocation_basis": "Start at 60000 minor units per day and review daily.",
+                  "approved_limit": "80000 minor units per day, as set in budget."},
+      "evidence": ["Fictional example: approved budget and first-order economics."]
+    },
+    "testing": {
+      "status": "decided", "reason": "Learn whether describing the routine addresses the main buyer barrier.",
+      "details": {"hypothesis": "Routine demonstration lowers first-order acquisition cost.",
+                  "comparison": "Routine demonstration against a formula explanation, with the same offer and destination.",
+                  "metric": "Cost per paid first order.",
+                  "stopping_rule": "Review after a mature window at the agreed minimum volume; otherwise report inconclusive."},
+      "evidence": ["Fictional example: test brief and baseline measurement."]
+    },
+    "retargeting": {"status": "deferred", "reason": "Audience volume is unavailable.", "revisit": "Recheck after the first complete reporting period."},
+    "optimization_and_scaling": {
+      "status": "decided", "reason": "Increase only when mature periods meet the acquisition target.",
+      "details": {"minimum_evidence": "Two complete periods at target and verified capacity.",
+                  "reversal_condition": "Reverse the latest increase when a full mature period breaches the reversal target."},
+      "evidence": ["Fictional example: acquisition target and budget change policy."]
+    },
+    "tracking_and_reporting": {
+      "status": "decided", "reason": "Compare store outcomes and Meta spend for the same campaign.",
+      "details": {"event_check": "Verify Purchase, currency, and value with a checkout test.",
+                  "business_report": "Campaign-filtered paid first orders using the result basis in review."},
+      "evidence": ["Fictional example: checkout test and Shopify export definition."]
+    }
+  },
+  "build": {
+    "destination": "https://example.com/offer",
+    "conversion_domain": "example.com",
+    "campaign": {"name": "agi-example-acquisition", "objective": "OUTCOME_SALES", "special_ad_categories": [], "daily_budget": 60000, "bid_strategy": "LOWEST_COST_WITHOUT_CAP"},
+    "ad_sets": [{
+      "settings": {
+        "name": "agi-example-broad", "targeting": {"geo_locations": {"countries": ["IN"]}, "age_min": 18},
+        "optimization_goal": "OFFSITE_CONVERSIONS", "billing_event": "IMPRESSIONS",
+        "destination_type": "WEBSITE", "promoted_object": {"pixel_id": "400", "custom_event_type": "PURCHASE"},
+        "attribution_spec": [{"event_type": "CLICK_THROUGH", "window_days": 7}]
+      },
+      "ads": [{"name": "agi-example-product", "creative_id": "500"}]
+    }]
+  }
+}

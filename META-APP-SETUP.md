@@ -27,7 +27,7 @@ Selecting a use case starts its setup. Check its dashboard for configuration, pe
 3. In Meta Business Settings, open **Integrations → Ads MCP server** and review the actions allowed for the intended ad account.
 4. Choose an authentication method supported by the MCP client. Meta documents OAuth, user access tokens and employee-role system-user access tokens. Its server URL is `https://mcp.facebook.com/ads`.
 5. For a token connection, Meta specifies `ads_mcp_management` and either `ads_read` or `ads_management` as minimum permissions. Assign the appropriate ad account access to the user or system user.
-6. Connect the client, then list ad accounts and read campaign performance. Verify the account and date range.
+6. Connect the client and verify the ad account. For performance, review a verified `agi-` campaign and confirm the date range.
 
 An app is not required for every Ads MCP connection. Codex automatic registration previously returned `invalid_client_metadata` in one test. A compatible connection still needs to be verified.
 
@@ -47,6 +47,8 @@ WhatsApp contact links and automated WhatsApp messaging have different setup nee
 2. For GitHub Actions workflows, store required credentials under **Settings → Secrets and variables → Actions** in the relevant repository.
 3. Add and test the workflow that consumes the secret. Saving a secret alone does not connect the app or enable automation.
 4. Verify read access before testing campaign creation or changes. Review the budget and delivery settings before activating an ad.
+
+See the [runbook credential mapping](docs/meta-ads/runbook.md#scheduled-review) for the separate Marketing API review, operator execution, and manual MCP check.
 
 ## Official references
 

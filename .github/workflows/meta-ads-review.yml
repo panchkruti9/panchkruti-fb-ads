@@ -1,0 +1,76 @@
+name: Meta Ads performance review
+
+on:
+  schedule:
+    - cron: '47 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meta-ads-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Review saved campaign plans
+        env:
+          META_READ_TOKEN: ${{ secrets.META_READ_TOKEN }}
+          META_AD_ACCOUNT_ID: ${{ vars.META_AD_ACCOUNT_ID }}
+          META_API_VERSION: ${{ vars.META_API_VERSION }}
+        shell: bash
+        run: |
+          shopt -s nullglob
+          plans=(docs/meta-ads/campaigns/*.json)
+          if (( ${#plans[@]} == 0 )); then
+            printf 'No verified campaign plans in docs/meta-ads/campaigns/. Review skipped.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for setting in META_READ_TOKEN META_AD_ACCOUNT_ID META_API_VERSION; do
+            if [[ -z "${!setting}" ]]; then
+              printf 'Scheduled review needs %s. See the Meta Ads runbook.\n' "$setting" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          done
+          result=0
+          for plan in "${plans[@]}"; do
+            name="$(basename "$plan" .json)"
+            evidence="docs/meta-ads/evidence/$name.json"
+            options=()
+            if [[ -f "$evidence" ]]; then
+              options+=(--evidence "$evidence")
+            else
+              printf 'No Shopify evidence for %s. Report will use Meta data only.\n' "$name" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            report="meta-ads-reviews/$name.json"
+            if python3 automation/meta_ads.py live-review "$plan" "${options[@]}" --output "$report"; then
+              PYTHONIOENCODING=utf-8 python3 - "$report" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          print(f"- **{report['plan_id']}** | {report['decision']}. {report['reason']}")
+          PY
+            else
+              printf 'Could not review %s. See the run log.\n' "$name" >> "$GITHUB_STEP_SUMMARY"
+              result=1
+            fi
+          done
+          exit "$result"
+      - name: Save review results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: meta-ads-reviews
+          path: meta-ads-reviews/
+          if-no-files-found: ignore
+          retention-days: 14
