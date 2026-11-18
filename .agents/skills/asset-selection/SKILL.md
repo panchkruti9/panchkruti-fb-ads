@@ -29,6 +29,8 @@ Google Drive connector; fetch the configured root and returned folders directly.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 When a Drive listing omits version or checksum, use [the connected Drive revision and original-file steps](../meta-ads/references/contracts.md#connected-agent-steps). Verify the eligible candidates directly through the plugin and continue with the files that pass.
 
 Use `meta-ads media-preview RUN_ID` to render the saved originals as local PNGs when the Drive viewer fails. Open the returned PNG paths with the local image viewer. If a candidate is unsuitable, inspect the others and use the skill's Creative Concept rework route if none fits.

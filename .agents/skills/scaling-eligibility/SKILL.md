@@ -29,6 +29,8 @@ Current paid-order evidence, Meta delivery, tracking and fulfilment/inventory re
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Read the current strategy criteria and two mature, comparable Meta and Shopify windows. Check target ID, tracking, attribution lag and denominator. Verify the minimum count of the selected business result and its cost at or under the strategy’s ceiling in each window. Require two nonoverlapping windows and verified contribution for the exact product and variant. In each window, product receipts after refunds and taxes must exceed verified product costs, shipping, fulfillment, fees and actual ad spend. Use the measured amounts in the business evidence. A CPA ceiling alone does not establish contribution.
 2. Check that the business outcome in those windows matches the actual strategy. For a first-time buyer goal, use the confirmed first-time buyer count and its cost in both windows. Keep unknown buyer history explicit.
 3. Verify availability with tracked stock or an independent current source and check fulfillment capacity and replenishment lead time. Confirm there was no material change that invalidates the comparison. Return boolean checks for business, tracking, stability, inventory and fulfillment using the keys business, tracking, stability, inventory, and fulfilment.

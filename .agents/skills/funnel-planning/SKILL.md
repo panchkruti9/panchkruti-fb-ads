@@ -29,6 +29,8 @@ Current campaign strategy and storefront evidence.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 Use [first-campaign decisions](../strategy-development/references/first-campaign-decisions.md) to select TOFU, MOFU and BOFU messages from the buyer's situation and objection. Preserve a supported Sales setup while research continues.
 
 1. Map Discovery, Consideration and Purchase to specific shopper questions from the strategy and research. Discovery should make the product and use case recognizable. Consideration should resolve a meaningful objection with proof. Purchase should make price, contents, terms or next action clear where they affect the decision.

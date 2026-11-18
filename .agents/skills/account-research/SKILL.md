@@ -29,6 +29,8 @@ Meta Marketing API via meta-ads account ACCOUNT; approved read-only breakdown to
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Verify account ID, currency, time zone and status. Read the managed `agi-` campaign → ad set → ad hierarchy from `account_report`. Verify each parent ID. Record configured and effective status separately so an active setting under a paused parent stays distinguishable from delivery.
 2. Match the product using saved enrollment, known destination and naming evidence. Group prior versions and note campaign objective, funding owner, countries and event source where visible. Compare only historical Insights actually returned for the same product, market, event and attribution basis.
 3. Report operating headroom and conflicts at the appropriate scope. Use verified managed objects for strategy and aggregate account-wide totals for budget. If a same-product campaign is listed but its activity or settings are uncertain, name the specific configuration or Insights read needed.

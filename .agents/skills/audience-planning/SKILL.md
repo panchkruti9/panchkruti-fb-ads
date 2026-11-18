@@ -29,6 +29,8 @@ Customer research and Meta read tools.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 Use [first-campaign decisions](../strategy-development/references/first-campaign-decisions.md) to connect the buyer hypothesis to supported Meta delivery controls. Explain why the selected scope fits this offer and spend, and which observation would make retargeting or another prospecting test useful.
 
 1. Separate the buyer description used to write the ad from enforceable targeting. Use the requested countries and verified shipping coverage. Decide which other controls are essential to the hypothesis, and confirm them in the current account and API recipe.

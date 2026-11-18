@@ -29,6 +29,8 @@ Orchestrator worker, saved proposal, and operator-controlled Meta executor.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Compile the typed plan into the exact orchestrator proposal. Verify ownership, naming, hierarchy, Purchase source, supported placement, approved asset revisions, identity, URL tags and budget headroom. Confirm the applicable operator authorization before any writes.
 2. For a new build create the paused campaign and ad sets and save IDs after readback. Resolve or upload approved media, handle video processing using its known ID, create the creative, and create the ad as PAUSED. For an addition use the verified existing ad set and create only the new creative and paused ad.
 3. After each write read back account, parent IDs, expected configuration and configured/effective status. Record provider IDs and pending or verified state. If a response is ambiguous, first resolve whether the object exists. Resume from confirmed IDs so retries do not create duplicates.

@@ -29,6 +29,8 @@ Product facts, concept, and shared skincare rules.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Read the concept, verified product claims, placement and destination. Put the value or product identity early enough to survive truncation. Use one verified reason to click. Write a headline understandable on its own and a description only if it adds useful information.
 2. Check the implied claim of every sentence. Ingredient presence can support an ingredient statement. It cannot support a result, timeframe, comparative claim or treatment promise by itself. Use neutral product language and follow brand and Meta rules about personal attributes. Match current price, bundle terms and CTA to the page.
 3. Return exact `variants` by ad name with `primary_text`, `headline`, `description` and `cta`. In `claim_evidence`, cite the product page or packaging once for ordinary product wording it supports. Identify separate sources for any stronger claim or offer.

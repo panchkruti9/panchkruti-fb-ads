@@ -29,6 +29,8 @@ Public Meta Ad Library, web or authorized browser.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Use Meta Ad Library with intended country and the relevant category. Start with verified advertiser Pages, then search product and category terms. Record date, country, search terms, Page, library ID or URL, and which sources were accessible.
 2. For each ad, record the opening scene or hook, product reveal, proof type, offer, format, CTA and destination when visible. Group near-identical variants as one concept so duplicated versions do not inflate the pattern. Infer the shopper question and stage as hypotheses.
 3. Build a short list of adaptable mechanisms, such as product demonstration or routine explanation. Tie each to a verified product fact and a customer question. Carry no competitor wording or unsupported result promise into Create.

@@ -29,6 +29,8 @@ Orchestrator proposal and operator executor; Create for revised builds.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Match the decision to the enrolled object, approved proposal, ownership, effective state and plan. Recheck relevant limits before a write. Use the shared dispatcher for authorized changes.
 2. For PAUSE, write only the authorized status and read it back. For a creative FIX, TEST or REFRESH, route approved changes through Create as new paused ads on the verified target. For a defect outside the executor, record which correction and verification are needed. RECREATE is routed directly to Research by the orchestrator with the prior decision and evidence. Verify the successor separately.
 3. Persist pending and verified states and actual Meta IDs. Reconcile uncertain responses before retrying. After a verified change, set the next comparable review and record the strategy version it belongs to.

@@ -29,6 +29,8 @@ Ad-level Insights, creative IDs and plan history.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Join ad Insights to exact ad ID, concept, version, offer, stage, format and placement. Check spend and impression exposure per ad before comparing response and Purchase CPA. A concept with negligible delivery stays inconclusive.
 2. Compare like conditions and report both spend and outcomes. A strong click rate and weak purchases can reflect a curiosity hook, a mismatch with the page, or tracking. Cross-check the destination and business evidence before recommending a new promise. A drop in response with rising frequency across comparable windows supports checking fatigue. A change in placement or audience mix offers an alternative explanation.
 3. Propose a single actionable improvement or test with a specific creative element and what to hold comparable. If both angle and format differ, record the difference as a package and keep component effects unknown.

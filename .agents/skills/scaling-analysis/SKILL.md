@@ -29,6 +29,8 @@ Current funding and Scale eligibility evidence.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Read `current_funding`, `account_budget_before` and both matched business outcome windows. Find the actual campaign or ad set that owns the budget and read its current minor currency units amount. Identify how much daily and projected month-end capacity remains after other active commitments.
 2. Compare baseline and conservative purchase-cost scenarios. Estimate extra orders as proposed extra spend ÷ scenario CPA and compare the range with inventory, fulfillment and the strategy’s CPA ceiling. A favorable historic CPA is a planning input. Treat marginal CPA after a scale as uncertain.
 3. Choose one bounded increase and set the first valid review window. Specify the spend, business KPI and operational stop trigger. When downside performance would exceed the approved ceiling or capacity, reduce the proposed increment or report that there is no defensible increment.

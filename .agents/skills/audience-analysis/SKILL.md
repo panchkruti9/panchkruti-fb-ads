@@ -29,6 +29,8 @@ Ad set Insights and available authorized breakdowns.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Join ad set results to verified geography, placements, customer controls and audience suggestions from the saved build. Compare windows with the same objective, optimization event and attribution settings. Check the current effective controls so later settings changes do not get attributed to creative.
 2. Compare delivery, spend and purchase evidence at the supported grain. Treat missing conversion breakdowns as unavailable. When an ad set has little delivery, check status, restrictions, budget and eligible audience size before judging its audience.
 3. Investigate concentration and overlap as hypotheses. Similar targeting can justify a closer look. Confirm overlap or relevant exclusions with authorized data before recommending consolidation or a change in controls. Avoid drawing buyer characteristics from placement or demographic reports alone.

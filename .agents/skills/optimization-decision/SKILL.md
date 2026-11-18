@@ -29,6 +29,8 @@ Current strategy, account facts and Optimize results.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Read Campaign Analysis, the current strategy version and recorded stop criteria. Check evidence maturity, budget exposure, exact target and recent changes. A confirmed operational or spending problem can need action before the performance window matures.
 2. Pick one action: HOLD for healthy or inconclusive delivery with a dated recheck, FIX for a verified defect, TEST for a falsifiable question within the current strategy, REFRESH for supported replacement of creative, PAUSE for a verified stop condition, RECREATE when the strategy’s underlying assumptions need a new cycle, or SCALE when qualified results favor more budget on the current strategy.
 3. Attach the evidence and the enrolled campaign ID, explain what made the action preferable, and set `next_review_on`. A PAUSE decision may instead target a verified ad or ad set belonging to that campaign. For creative FIX, TEST or REFRESH, identify relevant ads in the rationale. Use `fix_kind: creative` only for a specific creative correction. For RECREATE, record which prior hypothesis failed and what must be learned first.

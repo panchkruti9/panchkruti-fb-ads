@@ -29,6 +29,8 @@ Meta Marketing API Insights and authenticated account reads.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Read campaign, ad set and ad rows in `review_evidence.meta.current` and `.previous`. Record the exact dates, account time zone, identifiers, attribution settings and returned purchase action type. Split around significant edits or mixed settings before comparing.
 2. Use link clicks ÷ impressions for link CTR, spend ÷ link clicks for link CPC and spend × 1,000 ÷ impressions for CPM. Use one matching website Purchase action for Meta CPA. Leave missing denominators and unavailable breakdowns null. Compute ratios from totals at the right grain. Reach and frequency cannot be summed across rows as unique people.
 3. Read the sequence: delivery and status, cost of reaching people, response to the ad, then attributed purchases. A higher CPM with stable CTR and rising CPA merits checking delivery conditions. Stable delivery with a drop in link response points to a different hypothesis. Label the hypothesis and the required corroboration.

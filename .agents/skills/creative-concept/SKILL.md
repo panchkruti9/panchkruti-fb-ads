@@ -29,6 +29,8 @@ Campaign strategy, funnel and audience artifacts.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Choose the shopper question from Funnel Planning and Customer Research. Write the one thing the ad must communicate and how the viewer can see it. For a contents concept, show both authentic packs. For a routine concept, show the approved sequence. For value, show what is included and verified offer terms.
 2. For new AI-generated artwork, use verified packshots as product references and preserve the brand and packaging. Specify the exact short headline, optional supporting line, placement and CTA. Use the product name, bundle contents or a qualified benefit from the product page. If text rendering is unreliable, generate the layout with space for copy and add the approved wording separately. For existing approved artwork, choose the version that fits the concept and write the accompanying ad copy.
 3. Choose variants that test meaningfully different messages or proof mechanisms. When testing the message, hold offer, destination and intended audience conditions comparable. A font or border change alone leaves the underlying concept the same. If approved assets cannot prove the idea, describe the missing shot or rework the concept to supported evidence.

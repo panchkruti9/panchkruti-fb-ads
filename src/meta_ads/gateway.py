@@ -195,6 +195,12 @@ def invoke(store, run, operation, options=None):
         updated = import_result(store, run, result)
     else:
         updated = run
+        if not any(event["kind"] == "meta_job_read" and event["payload"].get("job_id") == result["job_id"]
+                   for event in store.events(run["id"])):
+            with store.tx():
+                store.log(run["id"], "meta_job_read", {"job_id": result["job_id"], "operation": operation,
+                                                      "detail": f"GitHub Meta {operation}: {result['status']}"})
+            store.refresh_logs()
     if result["status"] == "failed":
         raise Stop(result["error"])
     return updated, result.get("data")

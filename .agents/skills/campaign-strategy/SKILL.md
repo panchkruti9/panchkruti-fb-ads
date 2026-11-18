@@ -29,6 +29,8 @@ Read `account_report` for managed campaigns and ad sets. Read `account_budget_be
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 For a new or low-data account, read [first-campaign decisions](../strategy-development/references/first-campaign-decisions.md). Carry forward the chosen buyer, message, audience and review rationale. Explain what each campaign or ad set will teach at the available allocation.
 
 1. Read the current strategy’s goal, test and review criteria. For the supported website Sales recipe, use `OUTCOME_SALES`, verify the website Purchase source is attached to the correct account and store, and capture any activation checks that remain open. Preserve the distinction between the business outcome and Meta’s delivery event.

@@ -29,6 +29,8 @@ Scaling analysis, passed budget validation, Shopify evidence.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Transfer the target ID and before/after values from passed Scaling Analysis and Budget Validation without changing them. Identify which current strategy version and two mature evidence windows support the request.
 2. Present matched paid retained orders, spend, cost against target, date ranges and measurement limits. Show total account impact per day and at month end. Explain the expected incremental range and the downside using the same scenario assumptions as the analysis.
 3. Include the exact action, review date, rollback trigger and what the executor will verify. Bind the resulting proposal ID to the exact target and amounts so it can be approved as written.

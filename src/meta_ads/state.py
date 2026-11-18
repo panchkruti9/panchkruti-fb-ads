@@ -24,6 +24,7 @@ REGISTRY["existing-campaign-review"] = {
     "types": {"decision": "string", "checks": "object", "findings": "array"},
 }
 REGISTRY["activation-check"] = {
+    "name": "Campaign Launch",
     "path": ".agents/skills/campaign-launch/SKILL.md", "group": "create", "gated": False,
     "fields": ["destination_ok", "purchase_event_ok", "checkout_ok", "preview_checks",
                "tracking_reference", "spend_control_reference"],

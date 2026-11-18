@@ -29,6 +29,8 @@ Public web search and competitor product pages.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Search by the shopper’s use case, destination country and product form. Include direct alternatives and relevant substitutes, such as a single product instead of a bundle. Record why each alternative belongs in the comparison. Open its product and offer pages and date the observations.
 2. Compare the real bundle contents, market, price per unit where comparable, shipping and offer conditions where visible, opening promise, and visible proof. Note checkout-only terms as unverified until checked. Attribute each outcome claim to the advertiser.
 3. Turn a difference into a testable opportunity only if Product Research confirms the brand can demonstrate it. For example, lead with verified routine clarity if comparable products leave the sequence unclear and Customer Research shows that confusion matters.

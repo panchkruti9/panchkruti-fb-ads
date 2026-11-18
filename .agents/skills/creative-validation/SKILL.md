@@ -29,6 +29,8 @@ Approved media, actual placement previews, Shopify destination, Meta creative re
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 Carry each exact Audience Planning scope into the matching ad set's optional `audience` field. Retain the selected include and exclude IDs through QA.
 
 1. Inspect the full ad at phone size. Review existing artwork as supplied for material offer, destination, placement or Meta issues. Check the exact wording the agent adds to new visuals or ad copy against the product source. Verify packaging, brand, rights, readability and crop. For video, review the full clip or record the missing coverage.

@@ -29,6 +29,8 @@ Operator-controlled Meta execution and verified readback.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Open the approved proposal and verify the exact target ID, ownership and current budget. Recheck current campaign status, delivery, funding ownership, agreement with approved baseline and account-wide headroom. Check verified monthly spend control as required by policy.
 2. Record the pending update and apply only the authorized daily budget through the dispatcher. Read back budget and state. If Meta already shows the exact proposal result after an interrupted response, reconcile the recorded operation before issuing another write.
 3. Save actual before and after minor currency units, time, proposal reference, readback and strategy version. Restart monitoring using a clean post-change window and existing decision thresholds. Require new comparable evidence for another scaling decision.

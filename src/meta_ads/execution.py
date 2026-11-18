@@ -57,8 +57,8 @@ def operator_setup(run):
     return {"status": "setup_required" if missing else "configured", "missing": missing}
 
 
-def sign(value):
-    key = os.environ.get("META_ADS_OPERATOR_KEY") or os.environ.get("PANCHKRUTI_OPERATOR_KEY", "")
+def sign(value, *, key=None):
+    key = key or os.environ.get("META_ADS_OPERATOR_KEY") or os.environ.get("PANCHKRUTI_OPERATOR_KEY", "")
     if not key:
         from .state import ROOT
         from pathlib import Path
@@ -294,6 +294,8 @@ def proposal_id(proposal):
 
 
 def authorize(store, run_id, proposal_ref, *, operator, owner, reference, reject=False, renew=False):
+    from .gateway import enabled, operator_key
+    signing_key = operator_key(store) if enabled(store) else None
     with store.lease("executor"):
         run = store.get(run_id)
         rules = policy(run["request"].get("brand"))
@@ -304,7 +306,7 @@ def authorize(store, run_id, proposal_ref, *, operator, owner, reference, reject
         if renew:
             require(not reject and run["status"] in {"approved", "execution_blocked"}
                     and run["write_journal"].get(p["id"]), "Renewal is only for an approved partially executed proposal.")
-            verify_approval(run, readback_only=True)
+            verify_approval(run, readback_only=True, signing_key=signing_key)
             require(approval_expired(run), "The current approval is still valid.")
         else:
             require(run["status"] == "awaiting_approval", "The proposal must be awaiting approval.")
@@ -317,7 +319,7 @@ def authorize(store, run_id, proposal_ref, *, operator, owner, reference, reject
             require("owners" not in rules or owner in rules["owners"], "Owner is outside the brand policy.")
         decision = {"proposal_id": proposal_ref, "operator": operator, "owner": owner,
                     "reference": reference, "at": stamp(), "approved": not reject}
-        run["approval"] = {**decision, "signature": sign(decision)}
+        run["approval"] = {**decision, "signature": sign(decision, key=signing_key)}
         if reject:
             run.update(status="blocked", outcome="STOP", blockers=["Operator rejected this proposal."])
         else:
@@ -336,12 +338,12 @@ def approval_expired(run):
         hours=policy(run["request"].get("brand"))["approval_hours"])
 
 
-def verify_approval(run, *, readback_only=False):
+def verify_approval(run, *, readback_only=False, signing_key=None):
     p, a = run["proposal"], run["approval"]
     rules = policy(run["request"].get("brand"))
     require(p["id"] == proposal_id(p), "Proposal content changed after approval.")
     require(a["approved"] is True and a["proposal_id"] == p["id"]
-            and hmac.compare_digest(a["signature"], sign({k: v for k, v in a.items() if k != "signature"})),
+            and hmac.compare_digest(a["signature"], sign({k: v for k, v in a.items() if k != "signature"}, key=signing_key)),
             "Invalid approval for this proposal.")
     require("operators" not in rules or a["operator"] in rules["operators"], "Operator is outside the brand policy.")
     if p["operation"] in rules.get("owner_approval_actions", OWNER_ACTIONS):

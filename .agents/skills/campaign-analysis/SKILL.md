@@ -29,6 +29,8 @@ Current strategy and saved performance, business, creative and audience analysis
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Read the exact strategy version and launch/change history, then line up Meta delivery, Shopify data and the approved evaluation window. Label periods affected by creative, funding, promotion, inventory or measurement changes.
 2. Trace performance from eligible delivery to product visits, checkout and retained paid orders, only joining rates with valid denominators. Strong visits and falling checkout completion warrant checking fees, stock or payment before blaming creative. Rising Meta purchases with weakening Shopify matches warrants checking tags and lag before concluding actual sales rose or fell.
 3. Compare actual outcomes with the original hypothesis and decision metric. Record the strongest explanation, a plausible alternative and the cheapest check that would distinguish them. Separate verified defects from broad strategy failure.

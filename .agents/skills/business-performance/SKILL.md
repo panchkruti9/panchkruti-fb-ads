@@ -29,6 +29,8 @@ Shopify reporting and authorized tracking evidence.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Read both Shopify windows in `review_evidence`. Align product, dates, time zone and spend. Count only retained, paid, qualifying product orders in the matched denominator according to the current collector. Report exact last-visit Meta UTM matches, unmatched orders, pending journeys and refunds separately.
 2. Compute spend ÷ retained matched orders only for aligned windows with a positive denominator. Name it as a cost per observed matched order. Compare it with Meta CPA as a different measurement. Report how many relevant Shopify orders could be matched and what portion of the result remains uncertain. A low match count can reflect missing identifiers or incomplete customer journeys.
 3. Keep product net sales, whole-order revenue and contribution separate. Use the selected metric in `product_cash` for attributable carts and the exact window's verified costs. For mixed carts use verified order-line allocations. If coverage or allocated costs are missing, leave product contribution unknown and state why. For a new-buyer goal, use `matched_first_time_buyers` from the verified Shopify customer order index and report unknown buyer history explicitly.

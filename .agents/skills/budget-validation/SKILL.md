@@ -29,6 +29,8 @@ meta-ads budget ACCOUNT; Meta account funding and Insights.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Use the worker’s live funding enumeration and month-to-date spend in the account time zone. Count the active campaign budget once when it funds the children, and count ad set budgets when they own funding. Include all account exposure, including non-managed campaigns as aggregates.
 2. Replace the target’s current budget with the proposed amount exactly once. Compare projected daily exposure and month-to-date spend plus the planned reservation for remaining days with the effective brand policy. Confirm assumptions for any lifetime or scheduled amounts. Distinguish a forecast from the configured hard spend control.
 3. Record before and after totals, target, time zone, snapshot time and policy limit. A changed budget or spending scope requires fresh evidence before the proposal proceeds.

@@ -29,6 +29,8 @@ Orchestrator approve command run by the authorized operator.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Present the exact proposal ID, budget-owning object, current and proposed amount, account exposure and business evidence. Wait for a decision from the authorized owner.
 2. Record the operator, owner decision reference, timestamp and proposal ID through the orchestrator. Make clear which amount and target the decision covers. If the proposal changes in substance, submit the changed proposal for a fresh decision.
 3. Before releasing the job, verify the required approval record is current and ties to the exact proposal. Rejection or absent authorization leaves the write pending or rejected according to the actual recorded decision.

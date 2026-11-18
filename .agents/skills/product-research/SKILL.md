@@ -29,6 +29,8 @@ Shopify read connector, approved brand documents, and product page.
 
 ## Instructions
 
+Read [the practical decision guide](references/decision-guide.md) before preparing this step.
+
 1. Read `live_product` and `destination_read`. Match Shopify product and variant IDs to the request, then verify the customer-facing URL from `destination_read.url`, contents, sizes, price and availability for the advertised market. Record when and where each was checked. A compare-at price is price context. Confirm the actual terms before presenting a discount.
 2. Read the exact product's current storefront and approved packaging. Record ordinary benefits in the same qualified language. Use additional evidence when a concept introduces a stronger or measurable result beyond the source wording.
 3. Check stock tracking and inventory policy. With tracking off, zero quantity leaves availability unknown. Use verified fulfillment evidence to support an availability statement. Record missing costs, shipping or checkout evidence with the decision each gap affects.
