@@ -96,6 +96,18 @@ def wire_minor(value):
     return int(value)
 
 
+def budget_projection(funding, rules):
+    spend = Decimal(funding["spend"]) * rules["minor_per_unit"]
+    require(spend.is_finite() and spend >= 0 and spend == spend.to_integral_value(), "Invalid account spend.")
+    amount = minor(funding["daily_minor"])
+    remaining = minor(funding["assumed_remaining_days"], positive=True)
+    projected = int(spend) + amount * remaining
+    return {"as_of": funding["as_of"], "timezone": funding["timezone"], "spent_month_minor": int(spend),
+            "assumed_remaining_days": remaining, "daily_minor": amount, "monthly_minor": projected,
+            "passed": (rules["minimum_daily_minor"] <= amount <= rules["maximum_daily_minor"]
+                       and projected <= rules["maximum_monthly_minor"])}
+
+
 def campaign_key(value):
     require(isinstance(value, str) and len(value) <= 100
             and re.fullmatch(r"agi-[a-z0-9]+(?:-[a-z0-9]+)+", value), "Expected agi-<product>-<initiative>.")
@@ -270,7 +282,9 @@ class Meta:
         return fingerprint(item)
 
     def budget(self, *, replace=None, add=0):
-        cfg = policy()
+        return budget_projection(self.funding(replace=replace, add=add), policy())
+
+    def funding(self, *, replace=None, add=0):
         account = self.details()
         require(account["account_status"] == 1, "Meta account is not active.")
         tz = account["timezone_name"]
@@ -318,11 +332,7 @@ class Meta:
         response = list(self.pages(self.prefix + "/insights", "spend", level="account",
                                    time_range={"since": today.replace(day=1).isoformat(), "until": today.isoformat()}))
         require(len(response) <= 1, "Unexpected account spend response.")
-        spend = Decimal(response[0]["spend"]) * cfg["minor_per_unit"] if response else Decimal(0)
-        require(spend.is_finite() and spend >= 0 and spend == spend.to_integral_value(), "Invalid account spend.")
         remaining = calendar.monthrange(today.year, today.month)[1] - today.day + 1
-        projected = int(spend) + amount * remaining
-        return {"as_of": today.isoformat(), "timezone": tz, "spent_month_minor": int(spend),
-                "assumed_remaining_days": remaining, "daily_minor": amount, "monthly_minor": projected,
-                "passed": (cfg["minimum_daily_minor"] <= amount <= cfg["maximum_daily_minor"]
-                           and projected <= cfg["maximum_monthly_minor"])}
+        return {"as_of": today.isoformat(), "timezone": tz,
+                "spend": response[0]["spend"] if response else "0",
+                "assumed_remaining_days": remaining, "daily_minor": amount}

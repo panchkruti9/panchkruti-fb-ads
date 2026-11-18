@@ -24,6 +24,21 @@ ADDITIVE_FIELDS = ("spend", "impressions", "inline_link_clicks")
 ACTION_FIELDS = ("actions", "action_values", "outbound_clicks")
 
 
+def draft_readback(client, target):
+    """Collect exact ad destinations and settings without modifying the draft."""
+    campaign_id = target["id"]
+    adsets = list(client.pages(f"{campaign_id}/adsets", "id,name,campaign_id,configured_status,effective_status,"
+                              "daily_budget,lifetime_budget,targeting,promoted_object,optimization_goal"))
+    ads = list(client.pages(f"{campaign_id}/ads", "id,name,campaign_id,adset_id,configured_status,effective_status,creative"))
+    adsets = [row for row in adsets if row["configured_status"] not in {"DELETED", "ARCHIVED"}]
+    ads = [row for row in ads if row["configured_status"] not in {"DELETED", "ARCHIVED"}]
+    require(all(row["campaign_id"] == campaign_id for row in adsets + ads), "Draft child belongs to another campaign.")
+    for ad in ads:
+        ad["creative_readback"] = client.owned(ad["creative"]["id"],
+                                               "object_story_spec,url_tags,asset_feed_spec,product_set_id")
+    return {"adsets": adsets, "ads": ads}
+
+
 def capture(client, job_id):
     account = client.request(client.prefix, {"fields": "account_id,currency,timezone_name,account_status"})
     require(account.get("account_id") == client.account, "Meta snapshot account mismatch.")
@@ -32,6 +47,10 @@ def capture(client, job_id):
     span = {"since": first.isoformat(), "until": today.isoformat()}
     with configured({"policy": {"currency": account["currency"]}}):
         report = client.account_report()
+        try:
+            funding = client.funding()
+        except (Stop, KeyError, TypeError, ValueError):
+            funding = {"unavailable": "Meta did not supply complete account-wide funding."}
     campaigns = {}
     for target in report["managed_objects"]:
         states = {target["configured_status"], target["effective_status"]}
@@ -59,9 +78,14 @@ def capture(client, job_id):
                 alerts.append("No spend was reported for yesterday on this active campaign.")
         campaigns[target["id"]] = {"name": target["name"], "configuration": configuration,
                                    "effective_status": target["effective_status"], "daily": rows, "alerts": alerts}
+        if target["configured_status"] == "PAUSED":
+            try:
+                campaigns[target["id"]]["draft"] = draft_readback(client, target)
+            except (Stop, KeyError, TypeError, ValueError):
+                campaigns[target["id"]]["draft"] = {"unavailable": "Meta did not supply the complete paused draft."}
     return {"version": 1, "job_id": job_id, "observed_at": stamp(), "account_report": report,
             "first_day": first.isoformat(), "last_complete_day": (today - timedelta(days=1)).isoformat(),
-            "campaigns": campaigns}
+            "campaigns": campaigns, "funding": funding}
 
 
 def openssl():
