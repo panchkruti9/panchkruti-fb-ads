@@ -1,0 +1,21 @@
+{
+  "tracking": {
+    "product_id": "REPLACE_WITH_VERIFIED_PRODUCT_ID",
+    "pixel_id": "REPLACE_WITH_META_PIXEL_ID",
+    "purchase_verified": false,
+    "checkout_verified": false,
+    "reference": "Replace with verified evidence",
+    "observed_at": "REPLACE_WITH_VERIFICATION_TIMESTAMP"
+  },
+  "spend_control": {
+    "reference": "Replace with checked account control reference"
+  },
+  "economics": {
+    "product_id": "REPLACE_WITH_VERIFIED_PRODUCT_ID",
+    "target_cpa_minor": null,
+    "campaign": "REPLACE_WITH_MANAGED_CAMPAIGN_NAME",
+    "success_metric": "paid_orders",
+    "windows": [],
+    "source": "Replace with verified product and cohort financial records"
+  }
+}

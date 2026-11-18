@@ -1,0 +1,21 @@
+{
+  "product_id": "200000001",
+  "product_name": "Example product bundle",
+  "landing_page": "https://shop.example.com/products/example-product-bundle",
+  "countries": [
+    "US"
+  ],
+  "objective": "website_sales",
+  "brief": "Validate whether the bundle contents are a compelling reason to purchase.",
+  "daily_budget_minor": 2500,
+  "success_metric": "paid_orders",
+  "target_cost_minor": 2000,
+  "formats": [
+    "static",
+    "video"
+  ],
+  "placements": [
+    "facebook_feed",
+    "instagram_feed"
+  ]
+}

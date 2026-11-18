@@ -1,0 +1,49 @@
+{
+  "brand_id": "example-store",
+  "brand_name": "Example Store",
+  "website": "https://shop.example.com",
+  "shopify_shop": "example-store.myshopify.com",
+  "account_id": "100000001",
+  "page_id": "100000002",
+  "pixel_id": "100000003",
+  "instagram_id": "100000004",
+  "policy": {
+    "currency": "USD",
+    "minor_per_unit": 100,
+    "minimum_daily_minor": 0,
+    "maximum_daily_minor": 10000,
+    "maximum_monthly_minor": 120000,
+    "approval_hours": 24,
+    "creative_root": "https://drive.google.com/drive/folders/REPLACE_WITH_APPROVED_FOLDER_ID",
+    "stages": {
+      "discovery": "Discovery",
+      "consideration": "Consideration",
+      "purchase": "Purchase"
+    },
+    "excluded_folder": "Review before use",
+    "formats": [
+      "static",
+      "video",
+      "story"
+    ],
+    "placements": [
+      "facebook_feed",
+      "instagram_feed",
+      "facebook_story",
+      "instagram_story",
+      "facebook_reels",
+      "instagram_reels"
+    ],
+    "claim_rules": [],
+    "operators": [
+      "operator@example.com"
+    ],
+    "owners": [
+      "owner@example.com"
+    ],
+    "owner_approval_actions": [
+      "activate",
+      "budget"
+    ]
+  }
+}
