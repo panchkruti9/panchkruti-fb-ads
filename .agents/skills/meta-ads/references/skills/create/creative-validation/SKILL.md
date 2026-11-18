@@ -29,7 +29,7 @@ Approved media, actual placement previews, Shopify destination, Meta creative re
 
 ## Instructions
 
-1. Inspect the full ad at phone size and describe what a shopper would believe it promises. Compare this implied promise and all visible or spoken claims against approved evidence. Verify actual product packaging, brand, rights, readability and crop per placement. For video, verify the full clip or record what review is missing.
+1. Inspect the full ad at phone size. Compare its overall promise against the exact product page or packaging and apply the shared creative policy. Verify actual product packaging, brand, rights, readability and crop per placement. For video, verify the full clip or record what review is missing.
 2. Open the destination and compare store, product, price and applicable offer conditions with the ad. Verify exact ad names, approved Drive revisions, supported format and URL tags. Use the website Purchase recipe and placement keys in the build contract. Check the exact requested destination, verified offer and allowed formats and placements.
 3. Record an observation for each `checks` field and pair the exact `approved_ad` with its typed plan. Route copy failures to Copywriting, media failures to Asset Selection and unsupported premises to Creative Concept. Give the failed ad or asset and the change that would pass.
 
