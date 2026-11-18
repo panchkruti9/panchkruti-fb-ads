@@ -11,9 +11,9 @@ from unittest.mock import patch
 
 from ads import connected, meta_catchup
 from ads.__main__ import assigned_requests, initialize
-from ads.execution import authorize, campaign_configuration, identity, reconcile, sign
+from ads.execution import authorize, campaign_configuration, identity, read_object, reconcile, sign
 from ads.meta import Stop, configured
-from ads.plans import VISUAL_CHECKS
+from ads.plans import VISUAL_CHECKS, targeting, verify_audiences
 from ads.sources import shopify_window
 from ads.state import GROUPS, REGISTRY, Store, now, stamp
 from ads.worker import bind_live_inputs, evidence, output, review_inputs, run_due, submit_manual
@@ -408,6 +408,28 @@ class LifecycleTest(unittest.TestCase):
             bind_live_inputs(self.run, "campaign-strategy", context, plan)
         self.run["create_mode"] = "refresh"
         self.assertIs(bind_live_inputs(self.run, "campaign-strategy", context, plan), plan)
+
+    def test_retargeting_preserves_verified_include_and_exclude(self):
+        aset = {"country_codes": ["IN"], "placements": ["facebook_feed"],
+                "audience": {"mode": "retargeting", "include": ["101"], "exclude": ["102"]}}
+        rows = [{"id": key, "account_id": self.client.account, "subtype": "WEBSITE",
+                 "operation_status": {"code": 200}} for key in ("101", "102")]
+        with patch.object(self.client, "audience_inventory", return_value=rows, create=True):
+            verify_audiences(self.client, [aset])
+            rows[0]["operation_status"]["code"] = 471
+            with self.assertRaisesRegex(Stop, "restricted"):
+                verify_audiences(self.client, [aset])
+        expected = targeting(aset)
+        self.assertEqual(expected["excluded_custom_audiences"], [{"id": "102"}])
+        self.assertEqual(expected["targeting_automation"], {"advantage_audience": 0})
+        actual = deepcopy(expected)
+        actual["custom_audiences"][0]["name"] = "Website visitors"
+        node = {"id": "103", "settings": {"targeting": expected}}
+        with patch.object(self.client, "owned", return_value={"targeting": actual}):
+            read_object(self.client, node, None)
+            actual["custom_audiences"] = []
+            with self.assertRaisesRegex(Stop, "differ from the proposal"):
+                read_object(self.client, node, None)
 
     def test_learning_status_is_optional_and_does_not_discard_sales_reports(self):
         self.reach_build()

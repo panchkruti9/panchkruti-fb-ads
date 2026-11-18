@@ -95,6 +95,35 @@ def result(step, output):
     return output
 
 
+def audience_scope(value):
+    value = obj(value, ("mode", "include", "exclude"), label="target audience")
+    mode = value["mode"]
+    require(mode in ("broad", "retargeting", "lookalike"), "Unknown target audience mode.")
+    include, exclude = (seq(value[key], key) for key in ("include", "exclude"))
+    for key in include + exclude:
+        meta_id(key)
+    require(len(include + exclude) == len(set(include + exclude)), "Audience inclusions and exclusions must be distinct.")
+    require(bool(include) == (mode != "broad"), "Select an exact Meta audience for this mode.")
+    return value
+
+
+def verify_audiences(client, adsets):
+    scopes = [audience_scope(aset["audience"]) for aset in adsets if "audience" in aset]
+    if not any(scope["include"] or scope["exclude"] for scope in scopes):
+        return
+    available = {item["id"]: item for item in client.audience_inventory()}
+    for scope in scopes:
+        for key in scope["include"] + scope["exclude"]:
+            audience = available.get(key)
+            require(audience and audience.get("account_id") == client.account
+                    and (audience.get("operation_status") or {}).get("code") == 200
+                    and not audience.get("fields_violating_integrity_policy"),
+                    "A selected Meta audience is unavailable, restricted, or outside the approved account.")
+            if key in scope["include"]:
+                is_lookalike = audience.get("subtype") == "LOOKALIKE"
+                require(is_lookalike == (scope["mode"] == "lookalike"), "Meta audience subtype differs from the plan.")
+
+
 def ad_plan(run, approved_assets):
     steps = run["records"]
     validated = steps["creative-validation"]["data"]
@@ -138,7 +167,14 @@ def ad_plan(run, approved_assets):
         qa[key] = item
     seen, valid_sets, adset_total = set(), set(), 0
     for aset in seq(plan["adsets"], "ad sets", nonempty=True):
-        obj(aset, ("name", "daily_minor", "country_codes", "placements", "existing_adset_id", "ads"))
+        required = {"name", "daily_minor", "country_codes", "placements", "existing_adset_id", "ads"}
+        require(required <= obj(aset).keys() <= required | {"audience"}, "Invalid ad set plan fields.")
+        approved = steps.get("audience-planning", {}).get("data", {}).get("targeting_requirements", {})
+        approved = approved.get("adset_audiences", {}) if isinstance(approved, dict) else {}
+        if "audience" in aset or aset["name"] in approved:
+            scope = audience_scope(aset.get("audience"))
+            require(approved.get(aset["name"]) == scope,
+                    "Ad set audience differs from Audience Planning.")
         child_name(aset["name"], root)
         require(aset["name"] not in valid_sets, "Duplicate ad set.")
         valid_sets.add(aset["name"])
@@ -225,4 +261,11 @@ def targeting(aset):
         if platform not in values["publisher_platforms"]:
             values["publisher_platforms"].append(platform)
         values.setdefault(key, []).append(value)
+    if "audience" in aset:
+        scope = audience_scope(aset["audience"])
+        if scope["include"]:
+            values["custom_audiences"] = [{"id": key} for key in scope["include"]]
+            values["targeting_automation"] = {"advantage_audience": 0}
+        if scope["exclude"]:
+            values["excluded_custom_audiences"] = [{"id": key} for key in scope["exclude"]]
     return values

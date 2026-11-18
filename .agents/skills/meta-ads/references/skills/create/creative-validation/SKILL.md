@@ -29,6 +29,8 @@ Approved media, actual placement previews, Shopify destination, Meta creative re
 
 ## Instructions
 
+Carry each exact Audience Planning scope into the matching ad set's optional `audience` field. Retain the selected include and exclude IDs through QA.
+
 1. Inspect the full ad at phone size. Review existing artwork as supplied for material offer, destination, placement or Meta issues. Check the exact wording the agent adds to new visuals or ad copy against the product source. Verify packaging, brand, rights, readability and crop. For video, review the full clip or record the missing coverage.
 2. Open the destination and compare store, product, price and applicable offer conditions with the ad. Verify exact ad names, approved Drive revisions, supported format and URL tags. Use the website Purchase recipe and placement keys in the build contract. Check the exact requested destination, verified offer and allowed formats and placements.
 3. Record an observation for each `checks` field and pair the exact `approved_ad` with its typed plan. Route copy failures to Copywriting, media failures to Asset Selection and unsupported premises to Creative Concept. Give the failed ad or asset and the change that would pass.

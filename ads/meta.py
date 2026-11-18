@@ -264,6 +264,11 @@ class Meta:
             managed.append(obj)
         return {"account": account, "managed_objects": managed}
 
+    def audience_inventory(self):
+        fields = ("id,account_id,name,subtype,retention_days,operation_status,delivery_status,"
+                  "approximate_count_lower_bound,approximate_count_upper_bound,fields_violating_integrity_policy")
+        return list(self.pages(self.prefix + "/customaudiences", fields))
+
     def creative(self, creative_id, link, fmt):
         item = self.owned(creative_id, "object_story_spec,url_tags,asset_feed_spec,product_set_id")
         require(not item.get("asset_feed_spec") and not item.get("product_set_id"),

@@ -48,6 +48,10 @@ def capture(client, job_id):
     with configured({"policy": {"currency": account["currency"]}}):
         report = client.account_report()
         try:
+            report["audiences"] = client.audience_inventory()
+        except (Stop, KeyError, TypeError, ValueError):
+            report["audience_issue"] = "Meta did not return the account's saved audiences."
+        try:
             funding = client.funding()
         except (Stop, KeyError, TypeError, ValueError):
             funding = {"unavailable": "Meta did not supply complete account-wide funding."}

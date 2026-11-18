@@ -224,6 +224,21 @@ def media_needed(run):
     return (run["step"] in ASSET_STEPS or GATES.get(run["step"]) == "build")
 
 
+def drive_filing(run, rules):
+    records = run["records"]
+    campaign = records.get("campaign-strategy", {}).get("data", {}).get("campaign_key")
+    variants = records.get("ad-copywriting", {}).get("data", {}).get("variants", [])
+    files = []
+    for variant in variants:
+        name = variant["name"]
+        if not campaign or not name.startswith(campaign + "-"):
+            continue
+        stage = name[len(campaign) + 1:].partition("-")[0]
+        if stage in rules["stages"]:
+            files.append({"ad": name, "stage": stage, "folder": rules["stages"][stage], "file_stem": name})
+    return {"product_folder": run["request"].get("product_name", run["request"]["product_id"]), "files": files}
+
+
 def candidate(store, run):
     snapshot = meta_catchup.current_snapshot(store, run)
     return snapshot, enrollment.match(run, snapshot)
@@ -290,6 +305,8 @@ def next_step(store, run, *, client_factory=client_for):
             response["sources"]["drive"] = {
                 "root": policy()["creative_root"], "stages": policy()["stages"],
                 "excluded_folder": policy()["excluded_folder"], "media_directory": str(media_directory(store, run))}
+            if step == "asset-selection":
+                response["sources"]["drive"]["filing"] = drive_filing(run, policy())
         if step in META_READ_STEPS and not supplied and not existing:
             response["sources"]["meta_worker"] = True
         return response

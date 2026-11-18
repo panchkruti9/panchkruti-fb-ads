@@ -33,6 +33,8 @@ When a Drive listing omits version or checksum, use [the connected Drive revisio
 
 Use `python -m ads media-preview RUN_ID` to render the saved originals as local PNGs when the Drive viewer fails. Open the returned PNG paths with the local image viewer. If a candidate is unsuitable, inspect the others and use the skill's Creative Concept rework route if none fits.
 
+For a new creative produced for this run, follow `sources.drive.filing`. Under the saved Drive root, find or create the specified stage folder and its product subfolder using the Drive plugin. Look for the exact filename before upload. Reuse a matching file when its bytes match. If a verified original differs, use the next artwork revision in its filename. Upload the new file to the resolved parent folder ID and verify its ID, parent, and revision before using it. Reuse existing eligible artwork in place.
+
 1. Open the configured Drive root by ID and the exact approved stage folder. Use `drive_media` and supplied previews. Check file ID, revision, approval stage and exact product. Inspect the media itself. File names and folder location do not establish what viewers see.
 2. Apply pass/fail checks for authentic packaging, proof of the concept, visible claims, placement crop, contrast and readable size on a phone. For video use an approved poster for the same stage and verify all visible and spoken content. Sampled frames are partial evidence when audio or unseen sections remain.
 3. Among passing options choose the one that communicates the concept fastest in the placement. Record the exact file ID, revision, stage, ad name and why it fits. If unavailable, route to a supported concept using approved media or return the exact asset requirements for production.

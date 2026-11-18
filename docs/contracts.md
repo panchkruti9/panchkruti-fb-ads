@@ -72,6 +72,10 @@ data.ads[] =
 
 Placement keys are `facebook_feed`, `instagram_feed`, `facebook_story`, `instagram_story`, `facebook_reels`, and `instagram_reels`. Stories use Story placements. This recipe supports JPEG/PNG and MP4 with a separate approved JPEG/PNG poster. Requested settings outside this recipe need a reviewed connector addition. The operator checks actual rendering in Meta at activation.
 
+Ad sets can carry an `audience` object with `mode` (`broad`, `retargeting`, or `lookalike`) and `include` and `exclude` lists of numeric Meta audience ID strings. Match the exact saved Audience Planning scope by ad set name. The operator reads the account's saved audiences before proposals and writes and checks the targeting returned by Meta. Explicit inclusion uses manual audience controls and requires exact readback.
+
+The connected agent uses the Drive filing map for new creative. TOFU uses Discovery, MOFU uses Consideration, and BOFU uses Purchase. It creates missing folders, files new artwork under the product, and verifies its Drive readback before selection.
+
 ### Campaign decisions
 
 The lifecycle has four recorded outcomes, `COMPLETE`, `STOP`, `RECREATE`, and `SCALE`. Job status records where it is, such as ready, awaiting approval, monitoring, or blocked. A paused build can be complete while activation is waiting. Decisions inside Optimize are HOLD, FIX, TEST, REFRESH, PAUSE, RECREATE, and SCALE.

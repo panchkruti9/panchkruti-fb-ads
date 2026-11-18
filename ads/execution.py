@@ -10,7 +10,7 @@ from urllib.request import Request
 
 from .meta import (Stop, account_identity, brand_profile, canonical, destination, fingerprint, meta_id,
                    minor, policy, require, wire_minor)
-from .plans import PLACEMENTS, ad_plan, string, targeting
+from .plans import PLACEMENTS, ad_plan, string, targeting, verify_audiences
 from .sources import drive_inventory, drive_media, storefront
 from .state import now, parse_time, stamp
 
@@ -110,6 +110,14 @@ def read_object(client, node, status):
     if status is not None:
         fields += ",configured_status,effective_status"
     data = client.owned(node["id"], fields)
+    if "targeting" in expected:
+        remote = data.get("targeting") or {}
+        if expected["targeting"].get("custom_audiences"):
+            require(not any((remote.get("targeting_relaxation_types") or {}).values()),
+                    "Meta returned expanded audience targeting. Review the ad set before proceeding.")
+        for field in ("custom_audiences", "excluded_custom_audiences"):
+            if field in expected["targeting"]:
+                remote[field] = [{"id": str(row["id"])} for row in remote.get(field, [])]
     require(matches(data, expected), f"Meta settings on {node['id']} differ from the proposal.")
     if status:
         require(data["configured_status"] == status, f"Expected {status} on Meta object {node['id']}.")
@@ -160,6 +168,7 @@ def make_proposal(run, client, assets=None):
     impact = None
     if operation == "build":
         plan = ad_plan(run, drive_inventory() if assets is None else assets)
+        verify_audiences(client, plan["adsets"])
         addition = run.get("create_mode") in {"test", "refresh"}
         if not addition:
             require(not matches_by_name(client, "campaigns", plan["name"]), "Campaign name exists in Meta.")
@@ -170,6 +179,7 @@ def make_proposal(run, client, assets=None):
         action = {"plan": plan, "identity": identity(plan, client), "addition": addition}
     elif operation == "activate":
         batch = run["meta"]["pending_batch"]
+        verify_audiences(client, batch.get("audience_adsets", []))
         readiness = records["activation-check"]["data"]
         require(all(readiness.get(f) is True for f in ("destination_ok", "purchase_event_ok", "checkout_ok")),
                 "Required checkout, destination, and Purchase evidence is missing.")
@@ -400,6 +410,7 @@ class Executor:
 
     def build(self):
         plan, actor, addition = (self.action[k] for k in ("plan", "identity", "addition"))
+        verify_audiences(self.client, plan["adsets"])
         require(identity(plan, self.client) == actor, "Configured Meta identity changed after approval.")
         if self.run.get("connected"):
             from .connected import current_media, read_media
@@ -477,6 +488,9 @@ class Executor:
                 ads.append({"id": item["id"], "placements": aset["placements"]})
         batch = {"campaign_id": campaign_id, "addition": addition, "daily_minor": plan["daily_minor"],
                  "name": name, "objects": nodes, "ad_ids": ads, "adsets": parents, "identity": actor}
+        audience_adsets = [{"audience": aset["audience"]} for aset in plan["adsets"] if "audience" in aset]
+        if audience_adsets:
+            batch["audience_adsets"] = audience_adsets
         verify_batch(self.client, batch)
         return batch
 
@@ -502,6 +516,7 @@ class Executor:
 
     def activate(self):
         batch = self.action["batch"]
+        verify_audiences(self.client, batch.get("audience_adsets", []))
         verify_batch(self.client, batch)
         for obj in batch["objects"]:
             state = self.journal.get("activate:" + obj["id"], {}).get("state")

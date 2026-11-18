@@ -204,6 +204,11 @@ def collector(run, step, scratch, client_factory, *, meta_only=False):
         if step in {"account-research", "campaign-strategy", "audience-planning"}:
             client = client_factory(run)
             context["account_report"] = client.account_report()
+            if step == "audience-planning":
+                try:
+                    context["account_report"]["audiences"] = client.audience_inventory()
+                except (Stop, OSError) as error:
+                    context["account_report"]["audience_issue"] = missing(error)["unavailable"]
             if step == "campaign-strategy":
                 context["account_budget_before"] = client.budget()
         if not meta_only and step in ASSET_STEPS:
