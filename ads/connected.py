@@ -1,4 +1,5 @@
 """Collect evidence through the agent's read connections, outside the Meta worker."""
+import hashlib
 from datetime import timedelta, timezone
 import re
 from urllib.parse import urlsplit
@@ -143,7 +144,7 @@ def media_directory(store, run):
 
 def media_path(store, run, asset):
     revision = asset.get("revision")
-    require(isinstance(revision, str) and re.fullmatch(r"[0-9]{1,30}", revision), "Invalid Drive revision.")
+    require(isinstance(revision, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,160}", revision), "Invalid Drive revision.")
     root = media_directory(store, run)
     path = root / f"{drive_id(asset['file_id'])}.{revision}.bin"
     require(path.resolve() == path and path.is_file(), "Download the selected Drive revision through the plugin.")
@@ -155,7 +156,7 @@ def read_media(store, run, asset):
         return checked_media(asset, file.read(MAX_MEDIA_BYTES + 1))
 
 
-def inventory(run, packet):
+def inventory(store, run, packet):
     fresh(packet.get("observed_at"))
     listings = obj(packet.get("folders"), label="complete Drive folder listings")
 
@@ -163,7 +164,23 @@ def inventory(run, packet):
         rows = seq(listings.get(folder), label=f"complete Drive folder listing for {folder}")
         require(all(folder in item.get("parents", ()) for item in rows),
                 "A Drive result does not belong to the requested folder.")
-        return rows
+        results = []
+        for item in rows:
+            if item.get("mimeType") not in {"image/png", "image/jpeg", "video/mp4"} or (
+                    item.get("version") and item.get("md5Checksum")):
+                results.append(item)
+            elif head := item.get("headRevisionId"):
+                try:
+                    path = media_path(store, run, {"file_id": item["id"], "revision": head})
+                except Stop:
+                    continue
+                with path.open("rb") as file:
+                    raw = file.read(MAX_MEDIA_BYTES + 1)
+                if len(raw) != int(item["size"]) or len(raw) > MAX_MEDIA_BYTES:
+                    continue
+                results.append({**item, "version": head, "md5Checksum": hashlib.md5(raw, usedforsecurity=False).hexdigest(),
+                                "sha256Checksum": hashlib.sha256(raw).hexdigest()})
+        return results
 
     return {"observed_at": packet["observed_at"], "assets": drive_inventory(children)}
 
@@ -312,7 +329,8 @@ def collect_step(store, run_id, packet, *, client_factory=client_for):
             require("collection_error" not in meta, meta.get("collection_error", {}).get("unavailable", ""))
             context.update(meta)
         if media_needed(run):
-            media = inventory(run, obj(packet.get("drive"), label="Drive inventory read"))
+            media = inventory(store, run, obj(packet.get("drive"), label="Drive inventory read"))
+            require(media["assets"], "Read the current revisions and download eligible approved Drive originals before selection.")
             context["drive_media"] = list(media["assets"].values())
             run["connected_media"] = media
         if step == "strategy-development":

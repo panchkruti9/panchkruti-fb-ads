@@ -272,6 +272,8 @@ def drive_inventory(list_children=None):
                     assets[item["id"]] = {"file_id": item["id"], "name": item["name"], "mime": mime,
                                           "revision": item["version"], "md5": item["md5Checksum"],
                                           "stage": stage, "bytes": int(item["size"])}
+                    if item.get("sha256Checksum"):
+                        assets[item["id"]]["sha256"] = item["sha256Checksum"]
     return assets
 
 
@@ -286,6 +288,8 @@ def checked_media(asset, raw):
     require(len(raw) <= MAX_MEDIA_BYTES and len(raw) == asset["bytes"]
             and hashlib.md5(raw, usedforsecurity=False).hexdigest() == asset["md5"],
             "Media bytes do not match the approved Drive revision.")
+    require(not asset.get("sha256") or hashlib.sha256(raw).hexdigest() == asset["sha256"],
+            "Media SHA-256 does not match the recorded Drive original.")
     return raw
 
 

@@ -358,6 +358,18 @@ class LifecycleTest(unittest.TestCase):
             connected.read_media(self.store, run, asset)
         path.write_bytes(original)
         self.assertEqual(connected.read_media(self.store, run, asset), original)
+        opaque_head = "0B4B-current_binary_revision"
+        path = directory / f"{file_id}.{opaque_head}.bin"
+        path.write_bytes(original)
+        item.pop("version")
+        item.pop("md5Checksum")
+        item["headRevisionId"] = opaque_head
+        packet["revision"] = run["revision"]
+        run = connected.collect_step(self.store, run["id"], packet)
+        asset = connected.current_media(run)["assets"][file_id]
+        self.assertEqual(asset["revision"], opaque_head)
+        self.assertEqual(asset["sha256"], hashlib.sha256(original).hexdigest())
+        self.assertEqual(connected.read_media(self.store, run, asset), original)
 
     def test_meta_catchup_counts_each_snapshot_once_and_keeps_daily_reach_separate(self):
         examples = Path(__file__).resolve().parents[1] / "examples"

@@ -29,6 +29,8 @@ Google Drive connector; fetch the configured root and returned folders directly.
 
 ## Instructions
 
+When a Drive listing omits version or checksum, use [the connected Drive revision and original-file steps](../../../../../../../docs/contracts.md#connected-agent-steps). Verify the eligible candidates directly through the plugin and continue with the files that pass.
+
 1. Open the configured Drive root by ID and the exact approved stage folder. Use `drive_media` and supplied previews. Check file ID, revision, approval stage and exact product. Inspect the media itself. File names and folder location do not establish what viewers see.
 2. Apply pass/fail checks for authentic packaging, proof of the concept, visible claims, placement crop, contrast and readable size on a phone. For video use an approved poster for the same stage and verify all visible and spoken content. Sampled frames are partial evidence when audio or unseen sections remain.
 3. Among passing options choose the one that communicates the concept fastest in the placement. Record the exact file ID, revision, stage, ad name and why it fits. If unavailable, route to a supported concept using approved media or return the exact asset requirements for production.
