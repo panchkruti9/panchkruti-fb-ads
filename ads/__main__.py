@@ -61,7 +61,7 @@ def command():
             mode = p.add_mutually_exclusive_group()
             mode.add_argument("--now", action="store_true", help="Run due skills with the host's direct API connections.")
             mode.add_argument("--connected", action="store_true", help="Continue with the calling agent's plugins.")
-    for name in ("status", "events", "proposal", "resume", "review", "execute", "next"):
+    for name in ("status", "events", "proposal", "resume", "review", "execute", "next", "media-preview"):
         p = sub.add_parser(name)
         p.add_argument("run_id")
         if name == "resume":
@@ -254,6 +254,8 @@ def main():
                 emit(show(run))
             elif name == "next":
                 emit(connected.next_step(store, run))
+            elif name == "media-preview":
+                emit(connected.media_previews(store, run))
             elif name == "collect":
                 emit(show(connected.collect_step(store, run["id"], read(args.file))))
             elif name == "events":

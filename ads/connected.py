@@ -2,6 +2,9 @@
 import hashlib
 from datetime import timedelta, timezone
 import re
+import subprocess
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
 
 from . import enrollment, meta_catchup
@@ -154,6 +157,38 @@ def media_path(store, run, asset):
 def read_media(store, run, asset):
     with media_path(store, run, asset).open("rb") as file:
         return checked_media(asset, file.read(MAX_MEDIA_BYTES + 1))
+
+
+def media_previews(store, run):
+    """Render viewable copies of the checked originals for local inspection."""
+    saved = obj(run.get("connected_media"), label="saved approved Drive inventory")
+    directory = media_directory(store, run) / "previews"
+    require(directory.resolve() == directory, "Invalid media preview directory.")
+    directory.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for asset in saved["assets"].values():
+        try:
+            read_media(store, run, asset)
+            original = media_path(store, run, asset)
+            if asset["mime"] == "video/mp4":
+                duration = float(inspect_media(original)["duration_seconds"])
+                times = [0, duration / 2, max(0, duration - 0.2)]
+            else:
+                times = [0]
+            with TemporaryDirectory(dir=directory) as temporary:
+                paths = []
+                for index, second in enumerate(times):
+                    rendered = directory / f"{original.stem}.{index}.png"
+                    target = Path(temporary) / f"{index}.png"
+                    subprocess.run(["ffmpeg", "-v", "error", "-ss", str(second), "-i", str(original),
+                                    "-frames:v", "1", "-threads", "1", "-vf", "scale=1600:1600:force_original_aspect_ratio=decrease",
+                                    "-y", str(target)], capture_output=True, check=True, timeout=30)
+                    target.replace(rendered)
+                    paths.append(str(rendered))
+            rows.append({**asset, "previews": paths})
+        except (Stop, OSError, ValueError, subprocess.SubprocessError):
+            rows.append({**asset, "issue": "The cached original could not be rendered."})
+    return rows
 
 
 def inventory(store, run, packet):
