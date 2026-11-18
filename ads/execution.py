@@ -23,6 +23,39 @@ class Deferred(Stop):
     """A confirmed upload needs more processing time before the next write."""
 
 
+def approval_setup(run):
+    """Identify missing policy assignments for the exact operation."""
+    proposal = run.get("proposal") or {}
+    operation = proposal.get("operation") or GATES.get(run["step"])
+    if not operation:
+        return []
+    rules = policy(run["request"].get("brand"))
+    missing = []
+    if "operators" in rules and not rules["operators"]:
+        missing.append("Assign an authorized operator in the saved brand policy.")
+    if operation in rules.get("owner_approval_actions", OWNER_ACTIONS):
+        if "owners" in rules and not rules["owners"]:
+            missing.append("Assign the owner authorized to approve this operation.")
+    return missing
+
+
+def operator_setup(run):
+    """Report prerequisites on the host that is expected to execute the proposal."""
+    missing = approval_setup(run)
+    key = os.environ.get("META_ADS_OPERATOR_KEY") or os.environ.get("PANCHKRUTI_OPERATOR_KEY", "")
+    if len(key) < 32:
+        missing.append("Configure the approval signing key on the protected Meta worker.")
+    request = run["request"]
+    if os.environ.get("META_AD_ACCOUNT_ID", "").removeprefix("act_") != request["account_id"]:
+        missing.append("Configure the saved ad account on the protected Meta worker.")
+    version = os.environ.get("META_API_VERSION")
+    if not version or (run.get("proposal") and version != run["proposal"]["api_version"]):
+        missing.append("Configure the proposal's Meta API version on the protected worker.")
+    if not os.environ.get("META_WRITE_TOKEN"):
+        missing.append("Connect the protected worker's Meta write credential.")
+    return {"status": "setup_required" if missing else "configured", "missing": missing}
+
+
 def sign(value):
     key = os.environ.get("META_ADS_OPERATOR_KEY") or os.environ.get("PANCHKRUTI_OPERATOR_KEY", "")
     require(len(key) >= 32, "Use the protected operator environment to authorize writes.")
@@ -252,6 +285,8 @@ def authorize(store, run_id, proposal_ref, *, operator, owner, reference, reject
         rules = policy(run["request"].get("brand"))
         p = run["proposal"]
         require(p and p["id"] == proposal_id(p) == proposal_ref, "No matching exact proposal.")
+        missing = approval_setup(run)
+        require(not missing, " ".join(missing))
         if renew:
             require(not reject and run["status"] in {"approved", "execution_blocked"}
                     and run["write_journal"].get(p["id"]), "Renewal is only for an approved partially executed proposal.")

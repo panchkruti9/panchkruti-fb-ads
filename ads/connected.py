@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
 
 from . import enrollment, meta_catchup
-from .execution import GATES
+from .execution import GATES, approval_setup
 from .meta import Stop, account_zone, budget_projection, configured, destination, policy, require
 from .plans import obj, result, seq
 from .sources import (MAX_MEDIA_BYTES, ORDERS, PRODUCT, checked_media, drive_id, drive_inventory,
@@ -262,6 +262,8 @@ def next_step(store, run, *, client_factory=client_for):
     step = run["step"]
     response = {"run_id": run["id"], "step": step, "status": run["status"], "revision": run["revision"],
                 "next_review_at": run["next_review_at"]}
+    if run["status"] == "awaiting_approval" and (setup := approval_setup(run)):
+        return {**response, "action": "operator-setup", "missing": setup}
     operator_build = (run.get("proposal") or {}).get("operation") == "build" and run["status"] == "approved"
     if run["status"] != "ready" and not operator_build:
         return response

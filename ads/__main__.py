@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .config import profile
 from . import connected, meta_catchup
-from .execution import authorize, reconcile
+from .execution import approval_setup, authorize, operator_setup, reconcile
 from .meta import Meta, Stop, configured, require
 from .sources import drive_inventory, product
 from .state import REGISTRY, ROOT, Store
@@ -24,6 +24,7 @@ def read(path):
 
 def show(run):
     proposal = run.get("proposal")
+    setup = approval_setup(run) if run["status"] == "awaiting_approval" else []
     return {key: run.get(key) for key in ("id", "revision", "group", "step", "status", "outcome", "next_review_at",
                                           "strategy_version", "blockers", "last_receipt", "waiting_health")} | {
         "product_id": run["request"]["product_id"],
@@ -31,8 +32,9 @@ def show(run):
         "connected": bool(run.get("connected")),
         "skill_path": REGISTRY.get(run["step"], {}).get("path"),
         "campaign": {key: run["meta"].get(key) for key in ("id", "name")},
+        "operator_setup_needed": setup,
         "approval_needed": {"id": proposal["id"], "action": proposal["operation"],
-                            "impact": proposal["impact"]} if proposal and run["status"] == "awaiting_approval" else None,
+                            "impact": proposal["impact"]} if proposal and run["status"] == "awaiting_approval" and not setup else None,
     }
 
 
@@ -61,7 +63,7 @@ def command():
             mode = p.add_mutually_exclusive_group()
             mode.add_argument("--now", action="store_true", help="Run due skills with the host's direct API connections.")
             mode.add_argument("--connected", action="store_true", help="Continue with the calling agent's plugins.")
-    for name in ("status", "events", "proposal", "resume", "review", "execute", "next", "media-preview"):
+    for name in ("status", "events", "proposal", "resume", "review", "execute", "next", "media-preview", "operator-check"):
         p = sub.add_parser(name)
         p.add_argument("run_id")
         if name == "resume":
@@ -254,6 +256,8 @@ def main():
                 emit(show(run))
             elif name == "next":
                 emit(connected.next_step(store, run))
+            elif name == "operator-check":
+                emit(operator_setup(run))
             elif name == "media-preview":
                 emit(connected.media_previews(store, run))
             elif name == "collect":

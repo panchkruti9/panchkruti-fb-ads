@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from ads import connected, meta_catchup
 from ads.__main__ import assigned_requests, initialize
-from ads.execution import authorize, campaign_configuration, identity, read_object, reconcile, sign
+from ads.execution import approval_setup, authorize, campaign_configuration, identity, read_object, reconcile, sign
 from ads.meta import Stop, configured
 from ads.plans import VISUAL_CHECKS, targeting, verify_audiences
 from ads.sources import shopify_window
@@ -430,6 +430,13 @@ class LifecycleTest(unittest.TestCase):
             actual["custom_audiences"] = []
             with self.assertRaisesRegex(Stop, "differ from the proposal"):
                 read_object(self.client, node, None)
+
+    def test_operator_setup_distinguishes_paused_build_from_launch(self):
+        with configured({"policy": {"operators": [], "owners": [], "owner_approval_actions": ["activate", "budget"]}}):
+            run = {"request": {}, "step": "campaign-build"}
+            self.assertEqual(len(approval_setup(run)), 1)
+            run["step"] = "activate"
+            self.assertEqual(len(approval_setup(run)), 2)
 
     def test_learning_status_is_optional_and_does_not_discard_sales_reports(self):
         self.reach_build()

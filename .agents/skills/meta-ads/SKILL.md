@@ -22,7 +22,7 @@ Reuse confirmed brand settings. Validate the filled setup against the shared pol
 1. Load the user-supplied brand and product request using the [operator guide](../../../README.md) and [shared policy rules](../../../docs/policy.md). Validate scope, product and budget. Check saved runs before starting another campaign.
 2. For a specific new run, use `python -m ads run REQUEST.json --brand BRAND.json --connected`. Follow `python -m ads next RUN_ID` for each due run. Handle Shopify, storefront, Drive and research work using the agent's connected tools and [connected step contract](../../../docs/contracts.md#connected-agent-steps). Send Meta operations to the Meta worker. The lifecycle selects the current skill and stores evidence. Use a separate database for simulations.
 3. Build one strategy per cycle and record its hypothesis, test and review criteria. On replacement or scheduled strategy refresh, read the prior strategy and its results. Keep routine tests and scale evaluations on the current strategy.
-4. Prepare the exact proposal and present its ID, scope and impact when policy approval is due. The protected operator process executes authorized changes and verifies readback.
+4. Before asking for approval, run `python -m ads operator-check RUN_ID` on the intended Meta execution host. If setup is required, keep the saved proposal and report setup as the next action. Ask only for an identity or access decision the user must make. Once configured, use the exact proposal and any recorded decision. The protected operator executes authorized changes and verifies readback.
 
 ## Keep work moving and update the user
 
