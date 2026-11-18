@@ -21,7 +21,7 @@ Reuse confirmed brand settings. Validate the filled setup against the shared pol
 
 1. Load the user-supplied brand and product request using the [operator guide](../../../README.md) and [shared policy rules](../../../docs/policy.md). Validate scope, product and budget. Check saved runs before starting another campaign.
 2. For a specific new run, use `python -m ads run REQUEST.json --brand BRAND.json --connected`. Follow `python -m ads next RUN_ID` for each due run. Handle Shopify, storefront, Drive and research work using the agent's connected tools and [connected step contract](../../../docs/contracts.md#connected-agent-steps). Send Meta operations to the Meta worker. The lifecycle selects the current skill and stores evidence. Use a separate database for simulations.
-3. Build one strategy per cycle and record its hypothesis, test and review criteria. On replacement or scheduled strategy refresh, read the prior strategy and its results. Keep routine tests and scale evaluations on the current strategy.
+3. Read the returned `guidance_path` when present. Build one strategy per cycle and record its buyer hypothesis, buying reason, message, audience decision, test and review criteria. On replacement or scheduled strategy refresh, read the prior strategy and its results. Keep routine tests and scale evaluations on the current strategy.
 4. Before asking for approval, run `python -m ads operator-check RUN_ID` on the intended Meta execution host. If setup is required, keep the saved proposal and report setup as the next action. Ask only for an identity or access decision the user must make. Once configured, use the exact proposal and any recorded decision. The protected operator executes authorized changes and verifies readback.
 
 ## Keep work moving and update the user
@@ -31,6 +31,8 @@ Resolve routine issues using saved evidence, the connected tools and the alterna
 Ask the user only for a decision, required help that the agent cannot supply, or a policy-required approval. Ask one concrete question and say what the answer will unlock. Present the exact proposal and its impact for approval.
 
 At meaningful milestones, report **Done**, **Waiting**, and **Next** in plain language. Omit empty items. Say whether the agent, a scheduled check, or the user owns the next action. Use the saved logs for diagnostics and surface technical details when the user needs them to act. Report a Meta change as done after verified readback.
+
+After a milestone or recorded failure, run `python -m ads log RUN_ID` to refresh the readable log and include its returned file link when reporting progress. This log contains the current status, skill findings and dated timeline.
 
 ## Continue on a schedule
 

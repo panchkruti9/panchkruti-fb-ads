@@ -29,6 +29,8 @@ Current campaign strategy and storefront evidence.
 
 ## Instructions
 
+Use [first-campaign decisions](../../../../../../../docs/first-campaign-decisions.md) to select TOFU, MOFU and BOFU messages from the buyer's situation and objection. Preserve a supported Sales setup while research continues.
+
 1. Map Discovery, Consideration and Purchase to specific shopper questions from the strategy and research. Discovery should make the product and use case recognizable. Consideration should resolve a meaningful objection with proof. Purchase should make price, contents, terms or next action clear where they affect the decision.
 2. Give each selected message a proof point, placement intent, destination, CTA and diagnostic signal. Keep the business purchase goal from Strategy Development. A consideration message can still be an ad in a Sales campaign.
 3. Allocate distinct stages to separate ad sets only when separate delivery is useful, targetable and affordable. For a small test, use the message most directly tied to the current hypothesis and defer the others explicitly. Plan remarketing only with verified usable audience and account controls.

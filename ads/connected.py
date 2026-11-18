@@ -14,7 +14,8 @@ from .plans import obj, result, seq
 from .sources import (MAX_MEDIA_BYTES, ORDERS, PRODUCT, checked_media, drive_id, drive_inventory,
                       inspect_media, order_window, shopify_window, windows)
 from .state import REGISTRY, now, parse_time, stamp
-from .worker import ASSET_STEPS, bind_live_inputs, client_for, collector, review_inputs, run_due, strategy_history
+from .worker import (ASSET_STEPS, PLANNING_STEPS, bind_live_inputs, client_for, collector,
+                     review_inputs, run_due, strategy_history)
 from .workflow import ready_review, resume, submit
 
 PRODUCT_STEPS = {"product-research", "scaling-eligibility"}
@@ -280,6 +281,8 @@ def next_step(store, run, *, client_factory=client_for):
                 supplied = False
         response.update(action="submit" if supplied else "collect", request=request, records=run["records"],
                         skill_path=REGISTRY.get(step, {}).get("path"), meta=run["meta"], sources={})
+        if step in PLANNING_STEPS:
+            response["guidance_path"] = "docs/first-campaign-decisions.md"
         if supplied:
             response["source_data"] = context["data"]
         existing = None

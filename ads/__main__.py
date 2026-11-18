@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .config import profile
 from . import connected, meta_catchup
+from .report import render
 from .execution import approval_setup, authorize, operator_setup, reconcile
 from .meta import Meta, Stop, configured, require
 from .sources import drive_inventory, product
@@ -63,7 +64,7 @@ def command():
             mode = p.add_mutually_exclusive_group()
             mode.add_argument("--now", action="store_true", help="Run due skills with the host's direct API connections.")
             mode.add_argument("--connected", action="store_true", help="Continue with the calling agent's plugins.")
-    for name in ("status", "events", "proposal", "resume", "review", "execute", "next", "media-preview", "operator-check"):
+    for name in ("status", "events", "proposal", "resume", "review", "execute", "next", "media-preview", "operator-check", "log"):
         p = sub.add_parser(name)
         p.add_argument("run_id")
         if name == "resume":
@@ -254,6 +255,11 @@ def main():
             run = store.get(args.run_id)
             if name == "status":
                 emit(show(run))
+            elif name == "log":
+                path = store.path.parent / "logs" / (run["id"] + ".md")
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(render(store, run), encoding="utf-8")
+                emit({"log": str(path)})
             elif name == "next":
                 emit(connected.next_step(store, run))
             elif name == "operator-check":

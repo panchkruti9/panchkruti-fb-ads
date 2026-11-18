@@ -29,6 +29,8 @@ Customer research and Meta read tools.
 
 ## Instructions
 
+Use [first-campaign decisions](../../../../../../../docs/first-campaign-decisions.md) to connect the buyer hypothesis to supported Meta delivery controls. Explain why the selected scope fits this offer and spend, and which observation would make retargeting or another prospecting test useful.
+
 1. Separate the buyer description used to write the ad from enforceable targeting. Use the requested countries and verified shipping coverage. Decide which other controls are essential to the hypothesis, and confirm them in the current account and API recipe.
 2. Inspect eligible ad set targeting and placements. For additions retain the exact ad set, countries, placements and Purchase source. For new builds, check any required custom segment, suppression or Advantage+ control as a capability in the account and executor rather than treating a suggestion as a restriction.
 3. Only split audiences when their delivery can be meaningfully compared and the budget can support each. Record the source for estimated audience size or overlap if available. Similar interest descriptions or two ad sets using the same geography only flag possible overlap.

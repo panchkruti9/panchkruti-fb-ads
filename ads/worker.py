@@ -31,7 +31,9 @@ MODEL_SCHEMA = {
     },
 }
 ASSET_STEPS = {"asset-selection", "creative-validation"}
-WEB_STEPS = {"competitor-research", "ad-library-research"}
+WEB_STEPS = {"customer-research", "competitor-research", "ad-library-research"}
+PLANNING_STEPS = {"customer-research", "strategy-development", "campaign-strategy",
+                  "funnel-planning", "audience-planning"}
 
 
 def client_for(run):
@@ -259,6 +261,8 @@ def codex_command():
 def codex_result(run, step, context, images, scratch):
     skill = (ROOT / REGISTRY[step]["path"]).read_text(encoding="utf-8")
     guide = (ROOT / "docs/strategy-knowledge.md").read_text(encoding="utf-8")
+    if step in PLANNING_STEPS:
+        guide += "\n\n" + (ROOT / "docs/first-campaign-decisions.md").read_text(encoding="utf-8")
     rule = (ROOT / "docs/policy.md").read_text(encoding="utf-8")
     contract = (ROOT / "docs/contracts.md").read_text(encoding="utf-8")
     settings = canonical(policy(run["request"].get("brand")))

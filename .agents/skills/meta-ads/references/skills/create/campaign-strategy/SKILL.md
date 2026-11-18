@@ -29,6 +29,8 @@ Read `account_report` for managed campaigns and ad sets. Read `account_budget_be
 
 ## Instructions
 
+For a new or low-data account, read [first-campaign decisions](../../../../../../../docs/first-campaign-decisions.md). Carry forward the chosen buyer, message, audience and review rationale. Explain what each campaign or ad set will teach at the available allocation.
+
 1. Read the current strategy’s goal, test and review criteria. For the supported website Sales recipe, use `OUTCOME_SALES`, verify the website Purchase source is attached to the correct account and store, and capture any activation checks that remain open. Preserve the distinction between the business outcome and Meta’s delivery event.
 2. Compare eligible same-product ad sets on market, destination, Purchase source, funding and business objective. Use the matching verified ad set for a creative addition, with its exact IDs and existing settings. Build a distinct campaign when a separate budget, event or delivery condition is material to the strategy.
 3. Estimate test volume from comparable spend and CPA. Use the saved daily and monthly limits. If the request includes a test budget, keep daily allocation × review window within it. Use the requested daily amount when supplied and respect the allowed formats and placements. Use shared campaign funding when delivery may allocate across eligible sets. Assign separate ad set budgets where the design needs independent funding. If randomization is necessary, verify experiment and executor support. A second budget alone does not make a randomized test.

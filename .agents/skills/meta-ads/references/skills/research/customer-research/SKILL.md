@@ -29,6 +29,8 @@ Shopify order/report tools and owner-approved reviews or support summaries.
 
 ## Instructions
 
+For a new or low-data account, read [first-campaign decisions](../../../../../../../docs/first-campaign-decisions.md). Use the product and relevant public customer research to propose labelled buyer situations, motivations and objections, and continue with a testable first strategy.
+
 1. Review aggregate `recent_order_sample` for observed purchase behavior and `owner_feedback` or verified reviews for stated reasons. Record market, product, sample size, dates and whether the comments came before or after purchase. Shopify order patterns can describe what people bought. Use direct feedback for why they say they bought.
 2. Group repeated questions by the shopper’s situation and the decision they are trying to make. Record the number of independent observations and contrary examples. Keep one-off comments as weak signals. A repeated objection among support inquiries may matter without representing all shoppers.
 3. Translate each relevant finding into a falsifiable proposition. Example: shoppers ask whether the two products are used together, so a verified routine explanation may improve purchase response versus a bundle-only message. Describe what data would strengthen or overturn that proposition. Use only aggregate evidence.
