@@ -263,6 +263,10 @@ def collect_step(store, run_id, packet, *, client_factory=client_for):
             context["paused_draft"] = enrollment.inspect(run, snapshot, target, run["enrolled_campaign"]["variant_ids"])
             context["account_report"] = snapshot["account_report"]
             context["meta_job_id"] = snapshot["job_id"]
+            campaign = snapshot["campaigns"][target["id"]]
+            context["delivery_history"] = {"from": snapshot["first_day"], "through": snapshot["last_complete_day"],
+                                           "campaign_rows": campaign["daily"]["campaign"]}
+            context["origin_evidence"] = run["request"].get("facts", {}).get("campaign_origin")
             funding = snapshot.get("funding", {})
             if funding.get("as_of"):
                 context["account_budget_before"] = budget_projection(funding, policy())
@@ -336,8 +340,8 @@ def submit_step(store, run, packet):
         bind_live_inputs(run, step, context, output)
         if step == enrollment.STEP and output["status"] == "pass":
             choice = output["data"]["decision"]
-            require(choice in {"keep_paused", "check_activation"}, "Choose a disposition for the existing paused draft.")
-            require(choice != "keep_paused" or output["data"]["findings"], "Record the reason for keeping the draft paused.")
+            require(choice in {"keep_paused", "check_activation", "replan"}, "Choose a disposition for the existing paused draft.")
+            require(choice == "check_activation" or output["data"]["findings"], "Record the reason for the draft decision.")
             if choice == "check_activation":
                 snapshot, target = candidate(store, run)
                 require(target and target["id"] == run["meta"]["id"] and snapshot["job_id"] == context["meta_job_id"],

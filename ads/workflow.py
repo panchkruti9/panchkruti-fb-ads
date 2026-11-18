@@ -358,6 +358,12 @@ def submit(store, run, output):
         if output["data"]["decision"] == "check_activation":
             require(run["meta"].get("pending_batch"), "The registered draft needs verified activation checks.")
             run["step"] = "activation-check"
+        elif output["data"]["decision"] == "replan":
+            require(run.get("enrolled_campaign") and not run.get("proposal") and not run.get("live_since"),
+                    "Use the normal optimization workflow for a campaign that has been launched.")
+            record_strategy_cycle(run, "paused_draft_replan")
+            plan_replacement(run)
+            group(run, "research", start="strategy-development")
         else:
             run.update(status="paused", outcome="COMPLETE", blockers=[])
     elif step == "optimization-decision":
