@@ -50,7 +50,8 @@ def blocked(reason):
     return output(reason, {}, refs=[], status="block", blockers=[reason])
 
 
-def review_inputs(run, client):
+def review_inputs(run, client, order_reader=None):
+    order_reader = order_reader or shopify_window
     details = client.details()
     zone, periods = windows(run, details)
     store = {"meta": {}, "shopify": {}, "warnings": [], "account_timezone": details["timezone_name"]}
@@ -61,8 +62,8 @@ def review_inputs(run, client):
                     record = meta_window(client, run["meta"], period)
                 else:
                     request = run["request"]
-                    record = shopify_window(request["product_id"], run["meta"]["name"], *period, zone,
-                                            variant_id=request.get("variant_id"))
+                    record = order_reader(request["product_id"], run["meta"]["name"], *period, zone,
+                                          variant_id=request.get("variant_id"))
                 store[name][key] = record
             except (Stop, ValueError, OSError) as error:
                 store["warnings"].append(f"{name} {key}: {error}")
@@ -174,11 +175,11 @@ def bind_live_inputs(run, step, context, result):
     return result
 
 
-def collector(run, step, scratch, client_factory):
+def collector(run, step, scratch, client_factory, *, meta_only=False):
     request, facts = run["request"], run["request"].get("facts", {})
     context, images = {}, []
     try:
-        if step in {"product-research", "customer-research", "scaling-eligibility"}:
+        if not meta_only and step in {"product-research", "customer-research", "scaling-eligibility"}:
             observed = product(request["product_id"])
             variant = request.get("variant_id")
             if variant:
@@ -192,7 +193,7 @@ def collector(run, step, scratch, client_factory):
                 require((supplied.hostname, supplied.path) == (actual.hostname, actual.path),
                         "Requested landing page differs from the verified Shopify product page.")
                 context["destination_read"] = storefront(url)
-        if step == "customer-research":
+        if not meta_only and step == "customer-research":
             # Aggregate prior product orders without exporting customer rows.
             zone = account_zone(client_factory(run).details()["timezone_name"])
             today = now().astimezone(zone).date()
@@ -205,7 +206,7 @@ def collector(run, step, scratch, client_factory):
             context["account_report"] = client.account_report()
             if step == "campaign-strategy":
                 context["account_budget_before"] = client.budget()
-        if step in ASSET_STEPS:
+        if not meta_only and step in ASSET_STEPS:
             context["drive_media"], images = asset_inputs(run, scratch)
         if step in {"scaling-analysis", "budget-validation"}:
             client = client_factory(run)
@@ -433,6 +434,7 @@ def strategy_history(store, run):
 
 
 def submit_manual(store, run, output):
+    require(not run.get("connected"), "Use the connected agent's step submission for this run.")
     step = run["step"]
     require(step not in {"activation-check", "budget-validation"},
             f"{step} uses verified evidence collected by the worker. Run the worker for this step.")
@@ -460,9 +462,15 @@ def tick_configured(store, run, agent, client_factory):
     if run["status"] != "ready":
         return monitor_waiting(store, run, client_factory)
     step = run["step"]
+    if run.get("connected") and step not in set(GATES) | {"activation-check", "budget-validation"}:
+        return run
     try:
         if step in GATES:
-            return prepare(store, run, client_factory(run))
+            assets = None
+            if run.get("connected") and GATES[step] == "build":
+                from .connected import current_media
+                assets = current_media(run)["assets"]
+            return prepare(store, run, client_factory(run), assets=assets)
         if step == "activation-check":
             return submit(store, run, activation(run, client_factory(run)))
         if step == "performance-analysis" and "review_evidence" not in run:
@@ -502,6 +510,8 @@ def tick_configured(store, run, agent, client_factory):
             return submit(store, run, bind_live_inputs(run, step, context, result))
     except (Stop, OSError, KeyError, TypeError, ValueError) as error:
         message = str(error) if isinstance(error, Stop) else f"{step} did not return a usable result ({type(error).__name__})."
+        if run.get("connected"):
+            raise Stop(message) from None
         run = store.get(run["id"])
         if run["status"] != "ready" or run["step"] != step:
             return run
@@ -516,8 +526,9 @@ def run_due(store, *, only=None, max_steps=40, agent=codex_result, client_factor
         for selected in [store.get(only)] if only else store.list():
             current = selected
             for _ in range(max_steps):
+                revision = current["revision"]
                 current = tick(store, current["id"], agent=agent, client_factory=client_factory)
-                if current["status"] != "ready":
+                if current["status"] != "ready" or current["revision"] == revision:
                     break
             summaries.append(current)
         return summaries

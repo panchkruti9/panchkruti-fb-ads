@@ -116,12 +116,18 @@ def money(value):
     return int(amount)
 
 
-def shopify_window(product_id, campaign, start, end, zone, *, variant_id=None):
-    gid = f"gid://shopify/Product/{product_id}"
-    variant = f"gid://shopify/ProductVariant/{variant_id}" if variant_id else None
+def order_window(start, end, zone):
     start_ts = datetime.combine(start, datetime.min.time(), tzinfo=zone)
     stop_ts = datetime.combine(end + timedelta(days=1), datetime.min.time(), tzinfo=zone)
     query = f"created_at:>='{start_ts.isoformat()}' created_at:<'{stop_ts.isoformat()}'"
+    return start_ts, stop_ts, query
+
+
+def shopify_window(product_id, campaign, start, end, zone, *, variant_id=None, order_query=None):
+    gid = f"gid://shopify/Product/{product_id}"
+    variant = f"gid://shopify/ProductVariant/{variant_id}" if variant_id else None
+    start_ts, stop_ts, query = order_window(start, end, zone)
+    order_query = order_query or gql
     counts = dict(paid_product_orders=0, matched_orders=0, unmatched_orders=0,
                   other_campaign_orders=0, pending_journey=0, matched_refunded_orders=0,
                   matched_order_total_minor=0, matched_order_total_refunded_minor=0,
@@ -130,7 +136,7 @@ def shopify_window(product_id, campaign, start, end, zone, *, variant_id=None):
                      "unallocated_orders": 0} for metric in ("paid_orders", "first_time_buyers")}
     cursor = None
     for _ in range(120):
-        edge = gql(ORDERS, {"query": query, "after": cursor})["orders"]
+        edge = order_query(ORDERS, {"query": query, "after": cursor})["orders"]
         for order in edge["nodes"]:
             created = datetime.fromisoformat(order["createdAt"])
             require(start_ts <= created < stop_ts, "Shopify returned an order outside the requested window.")
@@ -241,10 +247,11 @@ def drive_list(parent):
     raise Stop("Drive listing exceeded its page bound.")
 
 
-def drive_inventory():
+def drive_inventory(list_children=None):
+    list_children = list_children or drive_list
     config = policy()
     root = drive_id(config["creative_root"].rstrip("/").split("/")[-1])
-    roots = list(drive_list(root))
+    roots = list(list_children(root))
     assets = {}
     for stage, folder_name in config["stages"].items():
         folders = [item for item in roots if item["name"] == folder_name and item["mimeType"] == "application/vnd.google-apps.folder"]
@@ -255,7 +262,7 @@ def drive_inventory():
             folder = queue.pop()
             require(folder not in seen and len(seen) < 50, "Invalid or too large approved Drive hierarchy.")
             seen.add(folder)
-            for item in drive_list(folder):
+            for item in list_children(folder):
                 require(folder in item["parents"], "Drive child does not belong to the queried folder.")
                 mime = item["mimeType"]
                 if mime == "application/vnd.google-apps.folder" and item["name"] != config["excluded_folder"]:
@@ -272,7 +279,12 @@ def drive_media(asset):
     item = drive_id(asset["file_id"])
     raw = fetch(f"{ROOT_DRIVE}/files/{item}?alt=media&supportsAllDrives=true",
                 {"Authorization": f"Bearer {drive_token()}"}, cap=MAX_MEDIA_BYTES)
-    require(len(raw) == asset["bytes"] and hashlib.md5(raw, usedforsecurity=False).hexdigest() == asset["md5"],
+    return checked_media(asset, raw)
+
+
+def checked_media(asset, raw):
+    require(len(raw) <= MAX_MEDIA_BYTES and len(raw) == asset["bytes"]
+            and hashlib.md5(raw, usedforsecurity=False).hexdigest() == asset["md5"],
             "Media bytes do not match the approved Drive revision.")
     return raw
 

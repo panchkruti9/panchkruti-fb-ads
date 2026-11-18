@@ -1,0 +1,40 @@
+name: Meta catch-up snapshots
+on:
+  schedule:
+    - cron: '15 5 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: meta-catchup
+  cancel-in-progress: false
+jobs:
+  snapshot:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Capture and encrypt the Meta snapshot
+        env:
+          META_AD_ACCOUNT_ID: ${{ secrets.META_CATCHUP_ACCOUNT_ID || vars.META_AD_ACCOUNT_ID }}
+          META_API_VERSION: ${{ vars.META_API_VERSION || 'v27.0' }}
+          META_READ_TOKEN: ${{ secrets.META_READ_TOKEN || secrets.META_ACCESS_TOKEN }}
+          META_CATCHUP_CERT: ${{ vars.META_CATCHUP_CERT }}
+        shell: bash
+        run: |
+          if [[ -z "$META_AD_ACCOUNT_ID" || -z "$META_READ_TOKEN" || -z "$META_CATCHUP_CERT" ]]; then
+            echo 'Missing the Meta account, read secret, or snapshot recipient certificate.'
+            exit 2
+          fi
+          printf '%s\n' "$META_CATCHUP_CERT" > "$RUNNER_TEMP/meta-recipient.pem"
+          python3 -m ads.meta_catchup "$RUNNER_TEMP/meta-recipient.pem" "$RUNNER_TEMP/meta-snapshot.cms"
+      - name: Store the encrypted snapshot
+        uses: actions/upload-artifact@ea165f8d65b6e75b5404496c9af683 # v4.6.2
+        with:
+          name: meta-catchup
+          path: ${{ runner.temp }}/meta-snapshot.cms
+          if-no-files-found: error
+          retention-days: 35

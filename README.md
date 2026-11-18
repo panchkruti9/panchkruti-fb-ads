@@ -1,6 +1,6 @@
 # Meta Ads lifecycle
 
-One request starts Research → Strategy Development → Create. After the approved launch, the worker schedules monitoring, optimization and scale evaluation. When a result calls for a replacement, the worker gives the next Strategy Development step the previous strategy, campaign, outcomes and decision evidence.
+One request starts Research → Strategy Development → Create. After the approved launch, the connected agent continues monitoring, optimization and scale evaluation on its schedule. When a result calls for a replacement, the next Strategy Development step receives the previous strategy, campaign, outcomes and decision evidence.
 
 - [Orchestrator](.agents/skills/meta-ads/SKILL.md) and [27 lifecycle skills](docs/skills.md)
 - [Shared policy](docs/policy.md), [worker contracts](docs/contracts.md), [operating knowledge](docs/strategy-knowledge.md) and [activation checks](docs/activation.md)
@@ -23,13 +23,13 @@ The campaign builder supports website Purchase with single-image, MP4 video and 
 
 ## Start a run
 
-Say **Start manage ads** to start or continue the full lifecycle for the saved brand’s assigned products. The agent runs `python -m ads manage --now`. A single saved brand is selected automatically. To assign several products, save their filenames in `assignments.json` beside the private `brand.json`. With one product saved as `product.json`, the list is optional. A specific product or action in your request narrows the scope.
+Say **Start manage ads** to start or continue the full lifecycle for the saved brand’s assigned products. The agent runs `python -m ads manage --connected` and uses the existing Shopify and Drive plugins. A single saved brand is selected automatically. To assign several products, save their filenames in `assignments.json` beside the private `brand.json`. With one product saved as `product.json`, the list is optional. A specific product or action in your request narrows the scope.
 
-From this workspace, using Python 3.11+, an authenticated Codex CLI and ffprobe/ffmpeg for media inspection:
+From this workspace, use Python 3.11+ and ffprobe/ffmpeg for local media inspection:
 
 ```powershell
 python -m ads validate-request PRODUCT.json --brand BRAND.json
-python -m ads run PRODUCT.json --brand BRAND.json --now
+python -m ads run PRODUCT.json --brand BRAND.json --connected
 python -m ads status RUN_ID
 python -m ads proposal RUN_ID
 python -m ads events RUN_ID
@@ -39,17 +39,23 @@ The run saves a snapshot of the brand policy and product request. If the owner s
 
 ## Connect and automate
 
-Set credentials privately on the worker and operator hosts. Use the same repository and database path for both processes. The default is `.state/ads.sqlite3`, and `META_ADS_STATE_DB` or `--db` can select a different path.
+Use one scheduled connected agent to read Shopify and Drive and resume due lifecycle steps. Follow the [connected step contract](docs/contracts.md#connected-agent-steps). Use the same private database and media directory for the agent, Meta worker and protected operator. The default database is `.state/ads.sqlite3`, and `META_ADS_STATE_DB` or `--db` can select a different path.
 
 | Process | Configuration |
 |---|---|
-| Worker | `META_AD_ACCOUNT_ID`, `META_API_VERSION`, `META_READ_TOKEN`, `SHOPIFY_SHOP`, `SHOPIFY_API_VERSION`, `SHOPIFY_READ_TOKEN` with product and order access, and Drive read access. |
-| Operator | Same Meta account and version, Drive read access, `META_WRITE_TOKEN` and a protected random `META_ADS_OPERATOR_KEY` of at least 32 characters. Reconciliation also uses the read token. |
-| Host | Authenticated Codex CLI, optionally `META_ADS_CODEX_EXEC`. Install tzdata where Python cannot load the account's time zone. |
+| Connected agent | Shopify Admin product and order reads and approved Drive media reads through its plugins. |
+| Meta worker | `META_AD_ACCOUNT_ID`, `META_API_VERSION` and `META_READ_TOKEN` in the process that performs Meta reads. Install tzdata where Python cannot load the account's time zone. |
+| Protected Meta operator | Same Meta account and version, `META_WRITE_TOKEN`, and a protected random `META_ADS_OPERATOR_KEY` of at least 32 characters. Reconciliation uses the read token. The agent supplies current approved Drive originals for builds. |
 
-For unattended Drive access configure `DRIVE_OAUTH_CLIENT_ID`, `DRIVE_OAUTH_CLIENT_SECRET` and `DRIVE_OAUTH_REFRESH_TOKEN` with refreshable read access. A short test can use `DRIVE_READ_TOKEN`. Confirm scope with `python -m ads source account --brand BRAND.json`, `python -m ads source product PRODUCT_ID --brand BRAND.json`, or `python -m ads source drive --brand BRAND.json`.
+GitHub Actions secrets are available inside Actions jobs. A local Meta worker uses its own process environment. A GitHub-hosted Meta worker needs private access to the same run state and approved media. The existing GitHub reporting workflow is a separate job.
 
-Keep `python -m ads worker --watch` running or schedule `python -m ads worker`. Schedule a separate protected operator task running `python -m ads dispatch` to apply approved work and verify readback. Once both jobs are active, the lifecycle continues independently of chat until it reaches an approval or a recorded blocker.
+When the connected agent requests a Meta-only step, call `python -m ads worker --run RUN_ID` on the configured Meta host. For approved work, the protected operator runs `python -m ads dispatch` and verifies readback. A host with direct Shopify and Drive API connections can still explicitly use the legacy `--now` mode for its existing runs.
+
+### Catch up after the agent is offline
+
+The [Meta catch-up workflow](.github/workflows/meta-catchup.yml) reads the approved Meta account once a day. It collects recent daily Insights and delivery health for managed campaigns, and encrypts the snapshots before uploading them. Configure the workflow with the existing Meta access secret, the account ID in the `META_CATCHUP_ACCOUNT_ID` secret, and the public recipient certificate in the `META_CATCHUP_CERT` repository variable. Keep the matching private key, certificate and `config.json` in `.state/meta-catchup/` beside the state database. The configuration contains the GitHub `repo` in owner/repository form. Generate the key pair once with `python -c "from pathlib import Path; from ads.meta_catchup import setup; setup(Path('.state/meta-catchup'))"`. Keep the key in private storage.
+
+On wake, the connected agent runs its usual `manage --connected` entry point. The agent imports completed snapshots, records unseen observations for the saved campaign, and runs the next review when due. Meta and Shopify windows must use the same dates. The recent snapshot can supply account research or review evidence when direct Meta reads are unavailable. Any later budget validation, proposal, or execution still uses the live Meta checks and existing approvals. Local catch-up requires authenticated GitHub CLI and OpenSSL. Use `python -m ads meta-sync` to check catch-up independently.
 
 ## Review approvals and logs
 

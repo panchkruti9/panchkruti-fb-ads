@@ -381,7 +381,13 @@ class Executor:
                 require(any(row["hash"] == response["hash"] for row in images), "Image missing from Meta account.")
             return response
         key = ("video:" if video else "image:") + asset["file_id"]
-        raw = drive_media(asset) if key not in self.journal else None
+        raw = None
+        if key not in self.journal:
+            if self.run.get("connected"):
+                from .connected import read_media
+                raw = read_media(self.store, self.run, asset)
+            else:
+                raw = drive_media(asset)
         return self.step(key, {"kind": "video" if video else "image", "asset": asset},
                          lambda: upload(self.client, asset, raw), verify)
 
@@ -395,11 +401,17 @@ class Executor:
     def build(self):
         plan, actor, addition = (self.action[k] for k in ("plan", "identity", "addition"))
         require(identity(plan, self.client) == actor, "Configured Meta identity changed after approval.")
-        live = drive_inventory()
+        if self.run.get("connected"):
+            from .connected import current_media, read_media
+            live = current_media(self.run)["assets"]
+        else:
+            live = drive_inventory()
         ids = {k for aset in plan["adsets"] for ad in aset["ads"]
                for k in (ad["asset_id"], ad["poster_asset_id"]) if k}
         for k in ids:
             require(live.get(k) == plan["assets"][k], "An approved Drive asset changed or moved.")
+            if self.run.get("connected"):
+                read_media(self.store, self.run, live[k])
         self.budget(add=0 if addition else plan["daily_minor"])
         name = plan["name"]
         nodes, ads, parents = [], [], []

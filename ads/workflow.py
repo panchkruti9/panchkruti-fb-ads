@@ -398,7 +398,7 @@ def ready_review(store, run, *, force=False):
     return run
 
 
-def prepare(store, run, client):
+def prepare(store, run, client, *, assets=None):
     require(run["status"] == "ready" and run["step"] in GATES, "No proposal is due.")
     if run["step"] == "scaling-approval":
         require(scale_proof(run), "Verified scale evidence is incomplete.")
@@ -406,7 +406,7 @@ def prepare(store, run, client):
         if run["step"] == "scaling-approval" and run["request"].get("brand"):
             require(campaign_configuration(client, run["meta"]) == run.get("campaign_configuration"),
                     "Meta configuration changed after the sales review.")
-        proposal = make_proposal(run, client)
+        proposal = make_proposal(run, client, assets=assets)
     run.update(proposal=proposal, status="awaiting_approval", blockers=[])
     store.save(run, "proposal_ready", proposal)
     return run

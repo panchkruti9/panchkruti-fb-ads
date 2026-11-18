@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from .config import profile
+from . import connected, meta_catchup
 from .execution import authorize, reconcile
 from .meta import Meta, Stop, configured, require
 from .sources import drive_inventory, product
@@ -16,6 +17,8 @@ from .workflow import execute, ready_review, request, resume
 
 
 def read(path):
+    if path == "-":
+        return json.load(sys.stdin)
     return json.loads(Path(path).read_text(encoding="utf-8-sig"))
 
 
@@ -25,6 +28,7 @@ def show(run):
                                           "strategy_version", "blockers", "last_receipt", "waiting_health")} | {
         "product_id": run["request"]["product_id"],
         "brand_id": (run["request"].get("brand") or {}).get("brand_id"),
+        "connected": bool(run.get("connected")),
         "skill_path": REGISTRY.get(run["step"], {}).get("path"),
         "campaign": {key: run["meta"].get(key) for key in ("id", "name")},
         "approval_needed": {"id": proposal["id"], "action": proposal["operation"],
@@ -44,7 +48,9 @@ def command():
     p.add_argument("brand", help="Short brand name for the private setup folder.")
     p = sub.add_parser("manage", help="Start or continue the full lifecycle for assigned products.")
     p.add_argument("--brand", help="Saved brand JSON. Omit when one configured brand is present.")
-    p.add_argument("--now", action="store_true", help="Run the due skills immediately.")
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--now", action="store_true", help="Run due skills with the host's direct API connections.")
+    mode.add_argument("--connected", action="store_true", help="Continue with the calling agent's plugins.")
     for name, help_text in (("run", "Start or enqueue one campaign request."),
                             ("validate-request", "Check the brand profile and product fields offline.")):
         p = sub.add_parser(name, help=help_text)
@@ -52,8 +58,10 @@ def command():
         p.add_argument("--brand", help="User-supplied brand and policy JSON file.")
         p.add_argument("--test-budget", help="Use this test budget in normal currency units, such as 3000.")
         if name == "run":
-            p.add_argument("--now", action="store_true", help="Run the due skills immediately.")
-    for name in ("status", "events", "proposal", "resume", "review", "execute"):
+            mode = p.add_mutually_exclusive_group()
+            mode.add_argument("--now", action="store_true", help="Run due skills with the host's direct API connections.")
+            mode.add_argument("--connected", action="store_true", help="Continue with the calling agent's plugins.")
+    for name in ("status", "events", "proposal", "resume", "review", "execute", "next"):
         p = sub.add_parser(name)
         p.add_argument("run_id")
         if name == "resume":
@@ -64,6 +72,10 @@ def command():
     p = sub.add_parser("submit", help="Submit a structured read/analysis result manually.")
     p.add_argument("run_id")
     p.add_argument("step")
+    p.add_argument("file")
+    p.add_argument("--connected", action="store_true", help="Submit the current step as the connected agent.")
+    p = sub.add_parser("collect", help="Save scoped evidence collected by the connected agent.")
+    p.add_argument("run_id")
     p.add_argument("file")
     p = sub.add_parser("facts", help="Update checked owner-supplied references on a run.")
     p.add_argument("run_id")
@@ -89,6 +101,7 @@ def command():
     p.add_argument("--interval", type=int, default=300)
     sub.add_parser("dispatch", help="Operator job. Execute queued, explicitly approved proposals.")
     sub.add_parser("list")
+    sub.add_parser("meta-sync", help="Fetch completed read-only Meta snapshots from GitHub.")
     p = sub.add_parser("source", help="Probe one connected evidence source without modifying a campaign.")
     p.add_argument("source", choices=["account", "budget", "product", "drive"])
     p.add_argument("id", nargs="?")
@@ -159,6 +172,16 @@ def main():
             assignments = assigned_requests(args.brand)
             store = Store(args.db)
             runs = [store.create(item, reuse_existing=True) for item in assignments]
+            if args.connected:
+                try:
+                    caught_up = meta_catchup.sync(store)
+                    if caught_up["status"] not in {"unconfigured", "success", "waiting"}:
+                        print("The latest scheduled Meta read failed. Check the Meta catch-up workflow.", file=sys.stderr)
+                    elif caught_up.get("unavailable"):
+                        print("Some encrypted Meta snapshots could not be read.", file=sys.stderr)
+                except (Stop, OSError, KeyError, ValueError):
+                    print("Meta catch-up sync is unavailable. Continue with cached evidence if current.", file=sys.stderr)
+                runs = [meta_catchup.record(store, connected.enable(store, run)) for run in runs]
             if args.now:
                 runs = [run_due(store, only=run["id"])[0] for run in runs]
             emit([show(run) for run in runs])
@@ -196,12 +219,20 @@ def main():
                 return 0
         store = Store(args.db)
         if name == "run":
+            require(not args.connected or brand, "Load the saved brand for connected-agent mode.")
             run = store.create(campaign)
+            if args.connected:
+                run = connected.enable(store, run)
             emit(show(run))
             if args.now:
                 emit(show(run_due(store, only=run["id"])[0]))
         elif name == "list":
             emit([show(r) for r in store.list()])
+        elif name == "meta-sync":
+            summary = meta_catchup.sync(store)
+            for run in store.list():
+                meta_catchup.record(store, run)
+            emit(summary)
         elif name == "worker":
             require(args.interval >= 1, "Worker interval must be positive.")
             revisions = {}
@@ -221,6 +252,10 @@ def main():
             run = store.get(args.run_id)
             if name == "status":
                 emit(show(run))
+            elif name == "next":
+                emit(connected.next_step(store, run))
+            elif name == "collect":
+                emit(show(connected.collect_step(store, run["id"], read(args.file))))
             elif name == "events":
                 emit(store.events(run["id"]))
             elif name == "result":
@@ -233,7 +268,9 @@ def main():
                 emit(show(ready_review(store, run, force=True)))
             elif name == "submit":
                 require(run["step"] == args.step, "Run has already moved beyond this result.")
-                emit(show(submit_manual(store, run, read(args.file))))
+                output = read(args.file)
+                emit(show(connected.submit_step(store, run, output) if args.connected
+                          else submit_manual(store, run, output)))
             elif name == "facts":
                 values = read(args.file)
                 require(isinstance(values, dict) and values, "Supply a nonempty object of verified facts.")

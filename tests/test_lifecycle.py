@@ -1,4 +1,5 @@
 """Exercise decision boundaries using temporary state and a fake Marketing API."""
+import hashlib
 import json
 import os
 import tempfile
@@ -8,6 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+from ads import connected, meta_catchup
 from ads.__main__ import assigned_requests, initialize
 from ads.execution import authorize, campaign_configuration, identity, reconcile, sign
 from ads.meta import Stop, configured
@@ -276,6 +278,116 @@ class LifecycleTest(unittest.TestCase):
         self.run["step"] = "activation-check"
         with self.assertRaisesRegex(Stop, "collected by the worker"):
             submit_manual(self.store, self.run, {})
+
+    def test_connected_product_reuses_blocked_run_and_binds_plugin_evidence(self):
+        examples = Path(__file__).resolve().parents[1] / "examples"
+        brand = json.loads((examples / "brand-profile.json").read_text(encoding="utf-8"))
+        product = json.loads((examples / "product-request.json").read_text(encoding="utf-8"))
+        campaign = request(product, brand)
+        run = self.store.create(campaign)
+        submit(self.store, run, output("Shopify unavailable.", {}, refs=[], status="block",
+                                      blockers=["Missing SHOPIFY_READ_TOKEN."]))
+        run = connected.enable(self.store, self.store.get(run["id"]))
+        self.assertEqual(run["status"], "ready")
+        self.assertEqual(run["id"], self.store.create(campaign, reuse_existing=True)["id"])
+        with patch("ads.worker.collector", side_effect=AssertionError("Direct reads were used")):
+            self.assertEqual(run_due(self.store, only=run["id"])[0], run)
+        task = connected.next_step(self.store, run)
+        self.assertEqual(task["action"], "collect")
+        self.assertEqual(set(task["sources"]), {"shopify_product"})
+        capture = stamp()
+        source = {"shop": {"myshopifyDomain": "other.myshopify.com"},
+                  "product": {"id": f"gid://shopify/Product/{campaign['product_id']}",
+                              "onlineStoreUrl": campaign["landing_page"],
+                              "variants": {"nodes": [], "pageInfo": {"hasNextPage": False}}}}
+        if campaign.get("variant_id"):
+            source["product"]["variants"]["nodes"] = [{"id": f"gid://shopify/ProductVariant/{campaign['variant_id']}"}]
+        packet = {"revision": run["revision"], "shopify_product": {
+            "observed_at": capture, "pages": [{"after": None, "data": source}],
+            "storefront": {"url": campaign["landing_page"], "http_status": 200, "observed_at": capture}}}
+        with self.assertRaisesRegex(Stop, "different shop"):
+            connected.collect_step(self.store, run["id"], packet)
+        source["shop"]["myshopifyDomain"] = brand["shopify_shop"]
+        collected = connected.collect_step(self.store, run["id"], packet)
+        evidence = connected.next_step(self.store, collected)
+        self.assertEqual(evidence["action"], "submit")
+        result = valid_result("product-research", {"product_facts": {"url": campaign["landing_page"]}})
+        with self.assertRaisesRegex(Stop, "current revision"):
+            connected.submit_step(self.store, collected, {"revision": run["revision"], "result": result})
+        final = connected.submit_step(self.store, collected, {"revision": collected["revision"], "result": result})
+        self.assertEqual(final["step"], "customer-research")
+        self.assertEqual(final["records"]["product-research"]["status"], "pass")
+        self.assertEqual(connected.next_step(self.store, final)["sources"].keys(), {"shopify_orders"})
+
+    def test_connected_drive_accepts_only_approved_folder_and_matching_bytes(self):
+        examples = Path(__file__).resolve().parents[1] / "examples"
+        brand = json.loads((examples / "brand-profile.json").read_text(encoding="utf-8"))
+        product = json.loads((examples / "product-request.json").read_text(encoding="utf-8"))
+        run = connected.enable(self.store, self.store.create(request(product, brand)))
+        run["step"] = "asset-selection"
+        self.store.save(run, "fixture_asset_selection", {})
+        task = connected.next_step(self.store, run)
+        root = task["sources"]["drive"]["root"].rstrip("/").split("/")[-1]
+        folders = {root: []}
+        discovery = None
+        for stage, name in brand["policy"]["stages"].items():
+            identifier = "allowedfolder_" + stage
+            folders[root].append({"id": identifier, "name": name, "parents": [root],
+                                  "mimeType": "application/vnd.google-apps.folder"})
+            folders[identifier] = []
+            if stage == "discovery":
+                discovery = identifier
+        original = b"plugin source bytes"
+        file_id = "connectedasset123"
+        item = {"id": file_id, "name": "asset.jpg", "parents": ["wrongfolder"], "mimeType": "image/jpeg",
+                "version": "8", "md5Checksum": hashlib.md5(original, usedforsecurity=False).hexdigest(),
+                "size": str(len(original))}
+        folders[discovery].append(item)
+        packet = {"revision": run["revision"], "drive": {"observed_at": stamp(), "folders": folders}}
+        with self.assertRaisesRegex(Stop, "does not belong"):
+            connected.collect_step(self.store, run["id"], packet)
+        item["parents"] = [discovery]
+        with patch("ads.sources.drive_list", side_effect=AssertionError("Direct Drive read was used")):
+            run = connected.collect_step(self.store, run["id"], packet)
+        asset = connected.current_media(run)["assets"][file_id]
+        directory = connected.media_directory(self.store, run)
+        directory.mkdir(parents=True)
+        path = directory / f"{file_id}.8.bin"
+        path.write_bytes(b"changed source")
+        with self.assertRaisesRegex(Stop, "approved Drive revision"):
+            connected.read_media(self.store, run, asset)
+        path.write_bytes(original)
+        self.assertEqual(connected.read_media(self.store, run, asset), original)
+
+    def test_meta_catchup_counts_each_snapshot_once_and_keeps_daily_reach_separate(self):
+        examples = Path(__file__).resolve().parents[1] / "examples"
+        brand = json.loads((examples / "brand-profile.json").read_text(encoding="utf-8"))
+        product = json.loads((examples / "product-request.json").read_text(encoding="utf-8"))
+        run = connected.enable(self.store, self.store.create(request(product, brand)))
+        run["meta"] = {"id": "123", "name": run["request"]["name"]}
+        run["live_since"] = (now() - timedelta(days=3)).isoformat()
+        self.store.save(run, "fixture_live", {})
+        day = (now().date() - timedelta(days=1)).isoformat()
+        previous_day = (now().date() - timedelta(days=2)).isoformat()
+        row = {"campaign_id": "123", "date_start": day, "date_stop": day, "spend": "5.50",
+               "impressions": "10", "reach": "4", "frequency": "2.5",
+               "actions": [{"action_type": "purchase", "value": "1"}]}
+        daily = [row, {**row, "date_start": previous_day, "date_stop": previous_day}]
+        snapshot = {"job_id": "1000", "observed_at": stamp(), "first_day": previous_day, "last_complete_day": day,
+                    "account_report": {"account": {"account_id": brand["account_id"], "currency": brand["policy"]["currency"]}},
+                    "campaigns": {"123": {"name": run["meta"]["name"], "effective_status": "ACTIVE",
+                                          "alerts": [], "daily": {"campaign": daily}}}}
+        cache = self.store.path.parent / "meta-catchup" / "snapshots"
+        cache.mkdir(parents=True)
+        (cache / "1000.json").write_text(json.dumps(snapshot), encoding="utf-8")
+        once = meta_catchup.record(self.store, run)
+        twice = meta_catchup.record(self.store, once)
+        self.assertEqual(once["revision"], twice["revision"])
+        self.assertEqual(sum(event["kind"] == "meta_catchup" for event in self.store.events(run["id"])), 1)
+        aggregate = meta_catchup.aggregate_daily(daily, "campaign", previous_day, day)[0]
+        self.assertEqual(aggregate["spend"], "11.00")
+        self.assertEqual(aggregate["actions"], [{"action_type": "purchase", "value": "2"}])
+        self.assertNotIn("reach", aggregate)
 
     def test_campaign_strategy_rejects_existing_campaign_before_build(self):
         context = {"account_report": {"account": {"account_id": "99"}, "managed_objects": [{"name": NAME}]}}
