@@ -1,0 +1,482 @@
+{
+  "product-research": {
+    "group": "research",
+    "path": ".agents/skills/product-research/SKILL.md",
+    "name": "Product Research",
+    "fields": [
+      "product_facts",
+      "approved_claims",
+      "restrictions",
+      "unknowns"
+    ],
+    "gated": false,
+    "types": {
+      "product_facts": "object",
+      "approved_claims": "array",
+      "restrictions": "array",
+      "unknowns": "array"
+    }
+  },
+  "customer-research": {
+    "group": "research",
+    "path": ".agents/skills/customer-research/SKILL.md",
+    "name": "Customer Research",
+    "fields": [
+      "segments",
+      "motivations",
+      "objections",
+      "hypotheses",
+      "coverage"
+    ],
+    "gated": false,
+    "types": {
+      "segments": "array",
+      "motivations": "array",
+      "objections": "array",
+      "hypotheses": "array",
+      "coverage": "record"
+    }
+  },
+  "competitor-research": {
+    "group": "research",
+    "path": ".agents/skills/competitor-research/SKILL.md",
+    "name": "Competitor Research",
+    "fields": [
+      "competitors",
+      "offers",
+      "messaging",
+      "creative_patterns",
+      "opportunities"
+    ],
+    "gated": false,
+    "types": {
+      "competitors": "array",
+      "offers": "array",
+      "messaging": "array",
+      "creative_patterns": "array",
+      "opportunities": "array"
+    }
+  },
+  "ad-library-research": {
+    "group": "research",
+    "path": ".agents/skills/ad-library-research/SKILL.md",
+    "name": "Meta Ad Library Research",
+    "fields": [
+      "queries",
+      "ads",
+      "patterns",
+      "coverage"
+    ],
+    "gated": false,
+    "types": {
+      "queries": "array",
+      "ads": "array",
+      "patterns": "array",
+      "coverage": "record"
+    }
+  },
+  "account-research": {
+    "group": "research",
+    "path": ".agents/skills/account-research/SKILL.md",
+    "name": "Account Research",
+    "fields": [
+      "account_id",
+      "managed_objects",
+      "delivery",
+      "opportunities"
+    ],
+    "gated": false,
+    "types": {
+      "account_id": "string",
+      "managed_objects": "array",
+      "delivery": "record",
+      "opportunities": "array"
+    }
+  },
+  "strategy-development": {
+    "group": "research",
+    "path": ".agents/skills/strategy-development/SKILL.md",
+    "name": "Strategy Development",
+    "fields": [
+      "objective",
+      "funnel_allocation",
+      "audience_hypotheses",
+      "creative_directions",
+      "test_priorities",
+      "decisions",
+      "next_review_on",
+      "criteria"
+    ],
+    "gated": false,
+    "types": {
+      "objective": "string",
+      "funnel_allocation": "record",
+      "audience_hypotheses": "array",
+      "creative_directions": "array",
+      "test_priorities": "array",
+      "decisions": "record",
+      "next_review_on": "string",
+      "criteria": "object"
+    }
+  },
+  "campaign-strategy": {
+    "group": "create",
+    "path": ".agents/skills/campaign-strategy/SKILL.md",
+    "name": "Campaign Strategy",
+    "fields": [
+      "campaign_key",
+      "account_id",
+      "objective",
+      "structure",
+      "budget",
+      "success_criteria"
+    ],
+    "gated": false,
+    "types": {
+      "campaign_key": "string",
+      "account_id": "string",
+      "objective": "string",
+      "structure": "record",
+      "budget": "object",
+      "success_criteria": "record"
+    }
+  },
+  "funnel-planning": {
+    "group": "create",
+    "path": ".agents/skills/funnel-planning/SKILL.md",
+    "name": "Funnel Planning",
+    "fields": [
+      "stages",
+      "journey",
+      "allocation"
+    ],
+    "gated": false,
+    "types": {
+      "stages": "record",
+      "journey": "record",
+      "allocation": "record"
+    }
+  },
+  "audience-planning": {
+    "group": "create",
+    "path": ".agents/skills/audience-planning/SKILL.md",
+    "name": "Audience Planning",
+    "fields": [
+      "audiences",
+      "targeting_requirements",
+      "overlap",
+      "tests"
+    ],
+    "gated": false,
+    "types": {
+      "audiences": "array",
+      "targeting_requirements": "record",
+      "overlap": "record",
+      "tests": "array"
+    }
+  },
+  "creative-concept": {
+    "group": "create",
+    "path": ".agents/skills/creative-concept/SKILL.md",
+    "name": "Creative Concept",
+    "fields": [
+      "concepts",
+      "test_variables",
+      "production_brief"
+    ],
+    "gated": false,
+    "types": {
+      "concepts": "array",
+      "test_variables": "array",
+      "production_brief": "record"
+    }
+  },
+  "ad-copywriting": {
+    "group": "create",
+    "path": ".agents/skills/ad-copywriting/SKILL.md",
+    "name": "Ad Copywriting",
+    "fields": [
+      "variants",
+      "claim_evidence",
+      "ctas"
+    ],
+    "gated": false,
+    "types": {
+      "variants": "array",
+      "claim_evidence": "record",
+      "ctas": "record"
+    }
+  },
+  "asset-selection": {
+    "group": "create",
+    "path": ".agents/skills/asset-selection/SKILL.md",
+    "name": "Creative Asset Selection",
+    "fields": [
+      "assets",
+      "excluded",
+      "placement_fit"
+    ],
+    "gated": false,
+    "types": {
+      "assets": "array",
+      "excluded": "array",
+      "placement_fit": "record"
+    }
+  },
+  "creative-validation": {
+    "group": "create",
+    "path": ".agents/skills/creative-validation/SKILL.md",
+    "name": "Creative Validation",
+    "fields": [
+      "ads",
+      "checks",
+      "release_limits",
+      "plan"
+    ],
+    "gated": false,
+    "types": {
+      "ads": "array",
+      "checks": "record",
+      "release_limits": "record",
+      "plan": "object"
+    }
+  },
+  "campaign-build": {
+    "group": "create",
+    "path": ".agents/skills/campaign-build/SKILL.md",
+    "name": "Campaign Build",
+    "fields": [
+      "receipt"
+    ],
+    "gated": true,
+    "types": {
+      "receipt": "object"
+    }
+  },
+  "performance-analysis": {
+    "group": "optimize",
+    "path": ".agents/skills/performance-analysis/SKILL.md",
+    "name": "Performance Analysis",
+    "fields": [
+      "meta_current",
+      "meta_previous",
+      "attribution",
+      "time_zone",
+      "anomalies"
+    ],
+    "gated": false,
+    "types": {
+      "meta_current": "object?",
+      "meta_previous": "object?",
+      "attribution": "record",
+      "time_zone": "string",
+      "anomalies": "array"
+    }
+  },
+  "business-performance": {
+    "group": "optimize",
+    "path": ".agents/skills/business-performance/SKILL.md",
+    "name": "Business Performance Analysis",
+    "fields": [
+      "shopify_current",
+      "shopify_previous",
+      "tracking",
+      "attribution",
+      "limitations"
+    ],
+    "gated": false,
+    "types": {
+      "shopify_current": "object?",
+      "shopify_previous": "object?",
+      "tracking": "record",
+      "attribution": "record",
+      "limitations": "array"
+    }
+  },
+  "creative-analysis": {
+    "group": "optimize",
+    "path": ".agents/skills/creative-analysis/SKILL.md",
+    "name": "Creative Analysis",
+    "fields": [
+      "comparisons",
+      "fatigue",
+      "limitations",
+      "recommendations"
+    ],
+    "gated": false,
+    "types": {
+      "comparisons": "array",
+      "fatigue": "record",
+      "limitations": "array",
+      "recommendations": "array"
+    }
+  },
+  "audience-analysis": {
+    "group": "optimize",
+    "path": ".agents/skills/audience-analysis/SKILL.md",
+    "name": "Audience Analysis",
+    "fields": [
+      "comparisons",
+      "overlap",
+      "delivery_limits",
+      "recommendations"
+    ],
+    "gated": false,
+    "types": {
+      "comparisons": "array",
+      "overlap": "record",
+      "delivery_limits": "array",
+      "recommendations": "array"
+    }
+  },
+  "campaign-analysis": {
+    "group": "optimize",
+    "path": ".agents/skills/campaign-analysis/SKILL.md",
+    "name": "Campaign Analysis",
+    "fields": [
+      "goal_comparison",
+      "health",
+      "issues",
+      "recommendations"
+    ],
+    "gated": false,
+    "types": {
+      "goal_comparison": "record",
+      "health": "record",
+      "issues": "array",
+      "recommendations": "array"
+    }
+  },
+  "optimization-decision": {
+    "group": "optimize",
+    "path": ".agents/skills/optimization-decision/SKILL.md",
+    "name": "Optimization Decision",
+    "fields": [
+      "decision",
+      "rationale",
+      "target_id",
+      "next_review_on"
+    ],
+    "gated": false,
+    "types": {
+      "decision": "string",
+      "rationale": "string",
+      "target_id": "string",
+      "next_review_on": "string"
+    }
+  },
+  "optimization-execution": {
+    "group": "optimize",
+    "path": ".agents/skills/optimization-execution/SKILL.md",
+    "name": "Optimization Execution",
+    "fields": [
+      "receipt"
+    ],
+    "gated": true,
+    "types": {
+      "receipt": "object"
+    }
+  },
+  "scaling-eligibility": {
+    "group": "scale",
+    "path": ".agents/skills/scaling-eligibility/SKILL.md",
+    "name": "Scaling Eligibility",
+    "fields": [
+      "eligible",
+      "verified_checks",
+      "criteria",
+      "rationale"
+    ],
+    "gated": false,
+    "types": {
+      "eligible": "boolean",
+      "verified_checks": "object",
+      "criteria": "record",
+      "rationale": "string"
+    }
+  },
+  "scaling-analysis": {
+    "group": "scale",
+    "path": ".agents/skills/scaling-analysis/SKILL.md",
+    "name": "Scaling Analysis",
+    "fields": [
+      "current_daily_minor",
+      "proposed_daily_minor",
+      "risks",
+      "monitoring_plan",
+      "target_id"
+    ],
+    "gated": false,
+    "types": {
+      "current_daily_minor": "integer",
+      "proposed_daily_minor": "integer",
+      "risks": "array",
+      "monitoring_plan": "record",
+      "target_id": "string"
+    }
+  },
+  "budget-validation": {
+    "group": "scale",
+    "path": ".agents/skills/budget-validation/SKILL.md",
+    "name": "Budget Validation",
+    "fields": [
+      "account_id",
+      "projected_daily_minor",
+      "projected_monthly_minor",
+      "passed"
+    ],
+    "gated": false,
+    "types": {
+      "account_id": "string",
+      "projected_daily_minor": "integer",
+      "projected_monthly_minor": "integer",
+      "passed": "boolean"
+    }
+  },
+  "scaling-proposal": {
+    "group": "scale",
+    "path": ".agents/skills/scaling-proposal/SKILL.md",
+    "name": "Scaling Proposal",
+    "fields": [
+      "target_id",
+      "from_daily_minor",
+      "to_daily_minor",
+      "case",
+      "risks",
+      "next_review_on"
+    ],
+    "gated": false,
+    "types": {
+      "target_id": "string",
+      "from_daily_minor": "integer",
+      "to_daily_minor": "integer",
+      "case": "record",
+      "risks": "array",
+      "next_review_on": "string"
+    }
+  },
+  "scaling-approval": {
+    "group": "scale",
+    "path": ".agents/skills/scaling-approval/SKILL.md",
+    "name": "Scaling Approval",
+    "fields": [
+      "approval"
+    ],
+    "gated": true,
+    "types": {
+      "approval": "object"
+    }
+  },
+  "scaling-execution": {
+    "group": "scale",
+    "path": ".agents/skills/scaling-execution/SKILL.md",
+    "name": "Scaling Execution",
+    "fields": [
+      "receipt"
+    ],
+    "gated": true,
+    "types": {
+      "receipt": "object"
+    }
+  }
+}

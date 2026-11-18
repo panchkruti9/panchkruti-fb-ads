@@ -1,6 +1,12 @@
 .state/
+config/brands/
+data/
+logs/
 .env
 .env.*
 __pycache__/
 *.pyc
+*.egg-info/
+build/
+dist/
 Old/

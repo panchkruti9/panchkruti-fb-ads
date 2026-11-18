@@ -1,0 +1,37 @@
+name: Meta jobs
+run-name: Meta job ${{ inputs.job_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Signed encrypted job identifier
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: meta-jobs
+  cancel-in-progress: false
+jobs:
+  execute:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install --quiet .
+      - name: Execute authenticated Meta operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          META_ADS_GITHUB_JOB: '1'
+          META_AD_ACCOUNT_ID: ${{ secrets.META_CATCHUP_ACCOUNT_ID || vars.META_AD_ACCOUNT_ID }}
+          META_API_VERSION: ${{ vars.META_API_VERSION || 'v27.0' }}
+          META_READ_TOKEN: ${{ secrets.META_READ_TOKEN || secrets.META_ACCESS_TOKEN }}
+          META_WRITE_TOKEN: ${{ secrets.META_WRITE_TOKEN || secrets.META_ACCESS_TOKEN }}
+          META_ADS_OPERATOR_KEY: ${{ secrets.META_ADS_OPERATOR_KEY }}
+          META_JOB_DECRYPT_KEY: ${{ secrets.META_JOB_DECRYPT_KEY }}
+          META_JOB_CERT: ${{ vars.META_JOB_CERT }}
+          META_JOB_ID: ${{ inputs.job_id }}
+        run: python3 -m meta_ads.gateway "$META_JOB_ID"

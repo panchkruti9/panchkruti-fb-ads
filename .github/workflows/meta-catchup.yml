@@ -30,7 +30,8 @@ jobs:
             exit 2
           fi
           printf '%s\n' "$META_CATCHUP_CERT" > "$RUNNER_TEMP/meta-recipient.pem"
-          python3 -m ads.meta_catchup "$RUNNER_TEMP/meta-recipient.pem" "$RUNNER_TEMP/meta-snapshot.cms"
+          python3 -m pip install --quiet .
+          python3 -m meta_ads.meta_catchup "$RUNNER_TEMP/meta-recipient.pem" "$RUNNER_TEMP/meta-snapshot.cms"
       - name: Store the encrypted snapshot
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

@@ -9,15 +9,15 @@ from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from ads import connected, meta_catchup
-from ads.__main__ import assigned_requests, initialize
-from ads.execution import approval_setup, authorize, campaign_configuration, identity, read_object, reconcile, sign
-from ads.meta import Stop, configured
-from ads.plans import VISUAL_CHECKS, targeting, verify_audiences
-from ads.sources import shopify_window
-from ads.state import GROUPS, REGISTRY, Store, now, stamp
-from ads.worker import bind_live_inputs, evidence, output, review_inputs, run_due, submit_manual
-from ads.workflow import decision, execute, prepare, ready_review, request, resume, scale_proof, submit
+from meta_ads import connected, meta_catchup
+from meta_ads.__main__ import assigned_requests, initialize
+from meta_ads.execution import approval_setup, authorize, campaign_configuration, identity, read_object, reconcile, sign
+from meta_ads.meta import Stop, configured
+from meta_ads.plans import VISUAL_CHECKS, targeting, verify_audiences
+from meta_ads.sources import shopify_window
+from meta_ads.state import GROUPS, REGISTRY, Store, now, stamp
+from meta_ads.worker import bind_live_inputs, evidence, output, review_inputs, run_due, submit_manual
+from meta_ads.workflow import decision, execute, prepare, ready_review, request, resume, scale_proof, submit
 
 NAME = "agi-duo-unit-test"
 LINK = "https://shop.test-example.com/products/duo"
@@ -98,7 +98,7 @@ class FakeMeta:
         return deepcopy(value)
 
     def creative(self, creative_id, link, fmt):
-        from ads.meta import fingerprint
+        from meta_ads.meta import fingerprint
         return fingerprint(self.remote[creative_id])
 
     def budget(self, *, add=0, replace=None):
@@ -139,7 +139,7 @@ class LifecycleTest(unittest.TestCase):
                  "stages": {"discovery": "Discovery", "consideration": "Consideration", "purchase": "Purchase"},
                  "formats": ["static", "video", "story"]}
         legacy.write_text(json.dumps({"website_hosts": ["shop.test-example.com"], "policy": rules}), encoding="utf-8")
-        fixture_policy = patch("ads.meta.LEGACY_PROFILE_FILE", legacy)
+        fixture_policy = patch("meta_ads.meta.LEGACY_PROFILE_FILE", legacy)
         fixture_policy.start()
         self.addCleanup(fixture_policy.stop)
         for key, value in {
@@ -148,10 +148,10 @@ class LifecycleTest(unittest.TestCase):
             "upload": self.mock_upload,
             "storefront": lambda url: {"reachable": True},
         }.items():
-            p = patch("ads.execution." + key, value)
+            p = patch("meta_ads.execution." + key, value)
             p.start()
             self.addCleanup(p.stop)
-        p = patch("ads.worker.storefront", lambda url: {"reachable": True})
+        p = patch("meta_ads.worker.storefront", lambda url: {"reachable": True})
         p.start()
         self.addCleanup(p.stop)
         self.run = self.store.create(request({
@@ -218,7 +218,7 @@ class LifecycleTest(unittest.TestCase):
         return self.run
 
     def test_configured_request_enforces_brand_scope_and_format_policy(self):
-        root = Path(__file__).resolve().parents[1] / "examples"
+        root = Path(__file__).resolve().parents[1] / "config" / "examples"
         brand = json.loads((root / "brand-profile.json").read_text(encoding="utf-8"))
         item = json.loads((root / "product-request.json").read_text(encoding="utf-8"))
         configured = request(item, brand)
@@ -231,14 +231,14 @@ class LifecycleTest(unittest.TestCase):
 
     def test_fresh_copy_setup_keeps_unknowns_blank_and_preserves_saved_profile(self):
         root = Path(self.scratch.name) / "fresh"
-        template = root / "examples" / "brand-profile.json"
+        template = root / "config" / "examples" / "brand-profile.json"
         template.parent.mkdir(parents=True)
-        template.write_bytes((Path(__file__).resolve().parents[1] / "examples" / template.name).read_bytes())
-        with patch("ads.__main__.ROOT", root):
+        template.write_bytes((Path(__file__).resolve().parents[1] / "config" / "examples" / template.name).read_bytes())
+        with patch("meta_ads.__main__.ROOT", root):
             first = initialize("Example New Brand")
             path = Path(first["brand"])
             brand = json.loads(path.read_text(encoding="utf-8"))
-            self.assertEqual(path.parent.parent, root / ".state")
+            self.assertEqual(path.parent.parent, root / "config" / "brands")
             self.assertIsNone(brand["account_id"])
             self.assertIsNone(brand["policy"]["maximum_monthly_minor"])
             self.assertNotIn("page_id", brand)
@@ -250,9 +250,9 @@ class LifecycleTest(unittest.TestCase):
             self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["website"], brand["website"])
 
     def test_manage_uses_all_assignments_and_reuses_existing_runs(self):
-        examples = Path(__file__).resolve().parents[1] / "examples"
+        examples = Path(__file__).resolve().parents[1] / "config" / "examples"
         root = Path(self.scratch.name) / "manage-copy"
-        brand_dir = root / ".state" / "one-brand"
+        brand_dir = root / "config" / "brands" / "one-brand"
         brand_dir.mkdir(parents=True)
         (brand_dir / "brand.json").write_bytes((examples / "brand-profile.json").read_bytes())
         first = json.loads((examples / "product-request.json").read_text(encoding="utf-8"))
@@ -260,7 +260,7 @@ class LifecycleTest(unittest.TestCase):
         for name, data in [("first.json", first), ("second.json", second), ("unassigned.json", {})]:
             (brand_dir / name).write_text(json.dumps(data), encoding="utf-8")
         (brand_dir / "assignments.json").write_text('["first.json", "second.json"]', encoding="utf-8")
-        with patch("ads.__main__.ROOT", root):
+        with patch("meta_ads.__main__.ROOT", root):
             assigned = assigned_requests()
         self.assertEqual([item["product_id"] for item in assigned], ["200000001", "200000002"])
         runs = [self.store.create(item, reuse_existing=True) for item in assigned]
@@ -271,7 +271,7 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(resumed[0]["status"], "stopped")
 
     def test_manual_submissions_cannot_bypass_live_checks(self):
-        with patch("ads.worker.collector", return_value=({}, [])):
+        with patch("meta_ads.worker.collector", return_value=({}, [])):
             with self.assertRaisesRegex(Stop, "reachable Shopify product"):
                 submit_manual(self.store, self.run, valid_result("product-research"))
         self.assertEqual(self.store.get(self.run["id"])["step"], "product-research")
@@ -280,7 +280,7 @@ class LifecycleTest(unittest.TestCase):
             submit_manual(self.store, self.run, {})
 
     def test_connected_product_reuses_blocked_run_and_binds_plugin_evidence(self):
-        examples = Path(__file__).resolve().parents[1] / "examples"
+        examples = Path(__file__).resolve().parents[1] / "config" / "examples"
         brand = json.loads((examples / "brand-profile.json").read_text(encoding="utf-8"))
         product = json.loads((examples / "product-request.json").read_text(encoding="utf-8"))
         campaign = request(product, brand)
@@ -290,7 +290,7 @@ class LifecycleTest(unittest.TestCase):
         run = connected.enable(self.store, self.store.get(run["id"]))
         self.assertEqual(run["status"], "ready")
         self.assertEqual(run["id"], self.store.create(campaign, reuse_existing=True)["id"])
-        with patch("ads.worker.collector", side_effect=AssertionError("Direct reads were used")):
+        with patch("meta_ads.worker.collector", side_effect=AssertionError("Direct reads were used")):
             self.assertEqual(run_due(self.store, only=run["id"])[0], run)
         task = connected.next_step(self.store, run)
         self.assertEqual(task["action"], "collect")
@@ -320,7 +320,7 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(connected.next_step(self.store, final)["sources"].keys(), {"shopify_orders"})
 
     def test_connected_drive_accepts_only_approved_folder_and_matching_bytes(self):
-        examples = Path(__file__).resolve().parents[1] / "examples"
+        examples = Path(__file__).resolve().parents[1] / "config" / "examples"
         brand = json.loads((examples / "brand-profile.json").read_text(encoding="utf-8"))
         product = json.loads((examples / "product-request.json").read_text(encoding="utf-8"))
         run = connected.enable(self.store, self.store.create(request(product, brand)))
@@ -347,7 +347,7 @@ class LifecycleTest(unittest.TestCase):
         with self.assertRaisesRegex(Stop, "does not belong"):
             connected.collect_step(self.store, run["id"], packet)
         item["parents"] = [discovery]
-        with patch("ads.sources.drive_list", side_effect=AssertionError("Direct Drive read was used")):
+        with patch("meta_ads.sources.drive_list", side_effect=AssertionError("Direct Drive read was used")):
             run = connected.collect_step(self.store, run["id"], packet)
         asset = connected.current_media(run)["assets"][file_id]
         directory = connected.media_directory(self.store, run)
@@ -372,7 +372,7 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(connected.read_media(self.store, run, asset), original)
 
     def test_meta_catchup_counts_each_snapshot_once_and_keeps_daily_reach_separate(self):
-        examples = Path(__file__).resolve().parents[1] / "examples"
+        examples = Path(__file__).resolve().parents[1] / "config" / "examples"
         brand = json.loads((examples / "brand-profile.json").read_text(encoding="utf-8"))
         product = json.loads((examples / "product-request.json").read_text(encoding="utf-8"))
         run = connected.enable(self.store, self.store.create(request(product, brand)))
@@ -431,6 +431,23 @@ class LifecycleTest(unittest.TestCase):
             with self.assertRaisesRegex(Stop, "differ from the proposal"):
                 read_object(self.client, node, None)
 
+    def test_meta_creative_suffix_preserves_exact_content_check(self):
+        name = "agi-duo-acq-v02-discovery-duo-static-v01"
+        node = {"id": "103", "kind": "creative", "settings": {
+            "name": name, "object_story_spec": {"link_data": {"message": "approved copy"}}
+        }}
+        actual = {"name": name + " 2026-11-18-4ab855cb1e43cd3a49e0e25592380b0f",
+                  "object_story_spec": {"link_data": {"message": "approved copy"}}}
+        with patch.object(self.client, "owned", return_value=actual):
+            self.assertEqual(read_object(self.client, node, None)["name"], actual["name"])
+            actual["object_story_spec"]["link_data"]["message"] = "changed copy"
+            with self.assertRaisesRegex(Stop, "differ from the proposal"):
+                read_object(self.client, node, None)
+            actual["object_story_spec"]["link_data"]["message"] = "approved copy"
+            actual["name"] = name + "-unexpected"
+            with self.assertRaisesRegex(Stop, "differ from the proposal"):
+                read_object(self.client, node, None)
+
     def test_operator_setup_distinguishes_paused_build_from_launch(self):
         with configured({"policy": {"operators": [], "owners": [], "owner_approval_actions": ["activate", "budget"]}}):
             run = {"request": {}, "step": "campaign-build"}
@@ -444,8 +461,8 @@ class LifecycleTest(unittest.TestCase):
         self.execute()
         adset = next(row for row in self.client.remote.values() if row["edge"] == "adsets")
         adset["learning_stage_info"] = {"status": "LEARNING"}
-        with patch("ads.worker.meta_window", return_value={"rows": {}}), patch(
-                "ads.worker.shopify_window", return_value={"matched_orders": 3}):
+        with patch("meta_ads.worker.meta_window", return_value={"rows": {}}), patch(
+                "meta_ads.worker.shopify_window", return_value={"matched_orders": 3}):
             review = review_inputs(self.run, self.client)
             self.assertEqual(review["adset_delivery"]["adsets"][0]["learning_stage_info"]["status"], "LEARNING")
             with patch.object(self.client, "pages", side_effect=Stop("Learning field unavailable")):
@@ -454,7 +471,7 @@ class LifecycleTest(unittest.TestCase):
             self.assertEqual(review["shopify"]["current"]["matched_orders"], 3)
 
     def test_campaign_intake_defers_publishing_ids_until_meta_readback(self):
-        examples = Path(__file__).resolve().parents[1] / "examples"
+        examples = Path(__file__).resolve().parents[1] / "config" / "examples"
         brand = json.loads((examples / "brand-profile.json").read_text(encoding="utf-8"))
         item = json.loads((examples / "product-request.json").read_text(encoding="utf-8"))
         for key in ("page_id", "pixel_id", "instagram_id"):
@@ -472,7 +489,7 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(actual, {"page_id": "91", "pixel_id": "92", "instagram_user_id": "93"})
 
     def test_configured_brand_policy_applies_to_build_and_activation(self):
-        root = Path(__file__).resolve().parents[1] / "examples"
+        root = Path(__file__).resolve().parents[1] / "config" / "examples"
         brand = json.loads((root / "brand-profile.json").read_text(encoding="utf-8"))
         item = json.loads((root / "product-request.json").read_text(encoding="utf-8"))
         brand.update(account_id="99", page_id="91", pixel_id="92")
@@ -521,8 +538,8 @@ class LifecycleTest(unittest.TestCase):
                 })
             return valid_result(step)
 
-        with patch("ads.worker.collector", return_value=({}, [])), patch(
-                "ads.worker.bind_live_inputs", side_effect=lambda run, step, context, result: result):
+        with patch("meta_ads.worker.collector", return_value=({}, [])), patch(
+                "meta_ads.worker.bind_live_inputs", side_effect=lambda run, step, context, result: result):
             self.run = run_due(self.store, only=self.run["id"], max_steps=len(GROUPS["research"]),
                                agent=agent, client_factory=lambda _: self.client)[0]
         self.assertEqual(self.run["strategy_version"], old_version + 1)
@@ -681,7 +698,7 @@ class LifecycleTest(unittest.TestCase):
         }
         mixed = deepcopy(single)
         mixed["lineItems"]["nodes"].append({"currentQuantity": 1, "product": {"id": "gid://shopify/Product/102"}})
-        with patch("ads.sources.gql", return_value={"orders": {
+        with patch("meta_ads.sources.gql", return_value={"orders": {
                 "nodes": [single, mixed], "pageInfo": {"hasNextPage": False}}}):
             result = shopify_window("101", NAME, today, today, timezone.utc)
         self.assertEqual(result["matched_first_time_buyers"], 2)
@@ -744,7 +761,7 @@ class LifecycleTest(unittest.TestCase):
                         blocked_since=(now() - timedelta(hours=3)).isoformat())
         self.store.save(self.run, "fixture_overdue", {})
         writes = len(self.client.posts)
-        with patch("ads.worker.policy", return_value={"blocked_pause_after_hours": 2}):
+        with patch("meta_ads.worker.policy", return_value={"blocked_pause_after_hours": 2}):
             self.run = run_due(self.store, only=self.run["id"], client_factory=lambda _: self.client)[0]
         self.assertEqual(self.run["status"], "awaiting_approval")
         self.assertEqual(self.run["proposal"]["operation"], "pause")
@@ -765,7 +782,7 @@ class LifecycleTest(unittest.TestCase):
         self.client.remote[self.run["meta"]["id"]]["daily_budget"] += 1000
         review = self.sales_evidence()
         review["configuration"] = campaign_configuration(self.client, self.run["meta"])
-        with patch("ads.worker.review_inputs", return_value=review):
+        with patch("meta_ads.worker.review_inputs", return_value=review):
             self.run = run_due(self.store, only=self.run["id"], max_steps=1,
                                agent=lambda run, step, context, images, scratch: valid_result(step),
                                client_factory=lambda _: self.client)[0]
@@ -815,7 +832,7 @@ class LifecycleTest(unittest.TestCase):
                                            "target_id": target, "next_review_on": now().date().isoformat()})
             return valid_result(step)
 
-        with patch("ads.worker.review_inputs", return_value={"meta": {}, "shopify": {}}):
+        with patch("meta_ads.worker.review_inputs", return_value={"meta": {}, "shopify": {}}):
             self.run = run_due(self.store, only=self.run["id"], agent=agent, client_factory=lambda _: self.client)[0]
         self.assertEqual(self.run["review_number"], 1)
         self.assertEqual(self.run["records"]["optimization-decision"]["data"]["decision"], "HOLD")
