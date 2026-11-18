@@ -13,6 +13,11 @@ ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = json.loads((ROOT / "ads/registry.json").read_text(encoding="utf-8"))
 GROUPS = {group: [step for step, spec in REGISTRY.items() if spec["group"] == group]
           for group in ("research", "create", "optimize", "scale")}
+REGISTRY["existing-campaign-review"] = {
+    "path": ".agents/skills/meta-ads/references/existing-campaign-review.md", "group": "create", "gated": False,
+    "fields": ["decision", "checks", "findings"],
+    "types": {"decision": "string", "checks": "object", "findings": "array"},
+}
 REGISTRY["activation-check"] = {
     "path": "docs/activation.md", "group": "create", "gated": False,
     "fields": ["destination_ok", "purchase_event_ok", "checkout_ok", "preview_checks",

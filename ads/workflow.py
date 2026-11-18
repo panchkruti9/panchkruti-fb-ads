@@ -354,6 +354,12 @@ def submit(store, run, output):
             group(run, "create")
     elif step == "activation-check":
         run["step"] = "activate"
+    elif step == "existing-campaign-review":
+        if output["data"]["decision"] == "check_activation":
+            require(run["meta"].get("pending_batch"), "The registered draft needs verified activation checks.")
+            run["step"] = "activation-check"
+        else:
+            run.update(status="paused", outcome="COMPLETE", blockers=[])
     elif step == "optimization-decision":
         decision(run, output["data"])
     elif step == "scaling-eligibility" and not output["data"]["eligible"]:
@@ -478,7 +484,8 @@ def resume(store, run_id, *, from_step=None):
         p = run.get("proposal")
         rules = policy(run["request"].get("brand"))
         aged = p and (approval_expired(run) if run.get("approval", {}).get("approved") else expired(p, rules))
-        require(run["status"] == "blocked" or (aged and run["status"] in
+        require(run["status"] == "blocked" or (run["status"] == "paused" and run["step"] == "existing-campaign-review")
+                or (aged and run["status"] in
                 {"awaiting_approval", "approved", "execution_blocked"}), "Run is active or has an unexpired proposal.")
         current_writes = run["write_journal"].get(p["id"], {}) if p else {}
         require(not current_writes, "Reconcile partial writes before replacing the approved proposal.")

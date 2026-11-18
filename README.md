@@ -57,6 +57,8 @@ The [Meta catch-up workflow](.github/workflows/meta-catchup.yml) reads the appro
 
 On wake, the connected agent runs its usual `manage --connected` entry point. The agent imports completed snapshots, records unseen observations for the saved campaign, and runs the next review when due. Meta and Shopify windows must use the same dates. The recent snapshot can supply account research or review evidence when direct Meta reads are unavailable. Any later budget validation, proposal, or execution still uses the live Meta checks and existing approvals. Local catch-up requires authenticated GitHub CLI and OpenSSL. Use `python -m ads meta-sync` to check catch-up independently.
 
+The snapshot includes account-wide funding and paused campaign readback. At campaign strategy, the lifecycle can register an existing paused draft when the exact account, campaign, Shopify product and variant agree. The saved campaign then enters draft review before separate activation checks and approval.
+
 ## Review approvals and logs
 
 The operator records the decision on the exact proposal. Supply the policy-listed owner identity where required.

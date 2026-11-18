@@ -3,9 +3,9 @@ from datetime import timedelta, timezone
 import re
 from urllib.parse import urlsplit
 
-from . import meta_catchup
+from . import enrollment, meta_catchup
 from .execution import GATES
-from .meta import Stop, configured, destination, policy, require
+from .meta import Stop, account_zone, budget_projection, configured, destination, policy, require
 from .plans import obj, result, seq
 from .sources import (MAX_MEDIA_BYTES, ORDERS, PRODUCT, checked_media, drive_id, drive_inventory,
                       inspect_media, order_window, shopify_window, windows)
@@ -74,10 +74,12 @@ def product_context(run, packet):
         require(not info["hasNextPage"] or isinstance(after, str) and after and after not in seen,
                 "Shopify product pagination did not advance.")
         seen.add(after)
+    variant_ids = sorted({v["id"].removeprefix("gid://shopify/ProductVariant/") for v in variants})
     if request.get("variant_id"):
         variants = [v for v in variants if v["id"] == f"gid://shopify/ProductVariant/{request['variant_id']}"]
         require(len(variants) == 1, "Shopify plugin did not return the assigned variant.")
-    context = {"live_product": {**product, "variants": variants, "observed_at": packet["observed_at"]}}
+    context = {"live_product": {**product, "variants": variants, "observed_at": packet["observed_at"]},
+               "shopify_variant_ids": variant_ids}
     if run["step"] == "product-research":
         page = obj(packet.get("storefront"), label="storefront read")
         fresh(page.get("observed_at"))
@@ -170,6 +172,22 @@ def media_needed(run):
     return (run["step"] in ASSET_STEPS or GATES.get(run["step"]) == "build")
 
 
+def candidate(store, run):
+    snapshot = meta_catchup.current_snapshot(store, run)
+    return snapshot, enrollment.match(run, snapshot)
+
+
+def snapshot_account(run, snapshot, step):
+    context = {"account_report": snapshot["account_report"], "meta_job_id": snapshot["job_id"]}
+    if step == "campaign-strategy":
+        funding = snapshot.get("funding", {})
+        today = now().astimezone(account_zone(snapshot["account_report"]["account"]["timezone_name"])).date()
+        require(funding.get("as_of") == today.isoformat(),
+                "Refresh the Meta snapshot to read today's account-wide budget.")
+        context["account_budget_before"] = budget_projection(funding, policy(run["request"]["brand"]))
+    return context
+
+
 def next_step(store, run, *, client_factory=client_for):
     require(run.get("connected"), "Start this run in connected-agent mode.")
     if run["status"] == "monitoring":
@@ -195,10 +213,15 @@ def next_step(store, run, *, client_factory=client_for):
                         skill_path=REGISTRY.get(step, {}).get("path"), meta=run["meta"], sources={})
         if supplied:
             response["source_data"] = context["data"]
-        if step in PRODUCT_STEPS and not supplied:
+        existing = None
+        if step == "campaign-strategy" and not run["meta"]:
+            _, existing = candidate(store, run)
+        if (step in PRODUCT_STEPS or existing) and not supplied:
             response["sources"]["shopify_product"] = {
                 "query": shop_query(PRODUCT), "variables": {"id": f"gid://shopify/Product/{request['product_id']}", "after": None},
                 "storefront": request["landing_page"] if step == "product-research" else None}
+        if existing:
+            response["sources"]["existing_campaign"] = existing["name"]
         if step in {"customer-research", "performance-analysis"} and not supplied:
             zone, periods = periods_for(store, run, client_factory)
             response["sources"]["shopify_orders"] = {
@@ -215,7 +238,7 @@ def next_step(store, run, *, client_factory=client_for):
             response["sources"]["drive"] = {
                 "root": policy()["creative_root"], "stages": policy()["stages"],
                 "excluded_folder": policy()["excluded_folder"], "media_directory": str(media_directory(store, run))}
-        if step in META_READ_STEPS and not supplied:
+        if step in META_READ_STEPS and not supplied and not existing:
             response["sources"]["meta_worker"] = True
         return response
 
@@ -229,6 +252,20 @@ def collect_step(store, run_id, packet, *, client_factory=client_for):
     require(run["status"] == "ready" or build, "The run is waiting for a decision.")
     with configured(run["request"]["brand"]):
         context = {}
+        if step == "campaign-strategy" and not run["meta"]:
+            snapshot, existing = candidate(store, run)
+            if existing:
+                product = product_context(run, obj(packet.get("shopify_product"), label="Fresh Shopify product read"))
+                return enrollment.register(store, run, snapshot, existing, product["shopify_variant_ids"])
+        if step == enrollment.STEP:
+            snapshot, target = candidate(store, run)
+            require(target and target["id"] == run["meta"]["id"], "Refresh Meta readback for the registered campaign.")
+            context["paused_draft"] = enrollment.inspect(run, snapshot, target, run["enrolled_campaign"]["variant_ids"])
+            context["account_report"] = snapshot["account_report"]
+            context["meta_job_id"] = snapshot["job_id"]
+            funding = snapshot.get("funding", {})
+            if funding.get("as_of"):
+                context["account_budget_before"] = budget_projection(funding, policy())
         if step in PRODUCT_STEPS:
             context.update(product_context(run, obj(packet.get("shopify_product"), label="Shopify product read")))
         if step in {"customer-research", "performance-analysis"}:
@@ -256,11 +293,18 @@ def collect_step(store, run_id, packet, *, client_factory=client_for):
                         raise
                     context["review_evidence"] = meta_catchup.review(snapshot, run["meta"], periods, reports)
         if step in META_READ_STEPS:
-            meta, _ = collector(run, step, None, client_factory, meta_only=True)
-            if step == "account-research" and "collection_error" in meta:
+            meta = {}
+            if step in {"account-research", "campaign-strategy", "audience-planning"}:
                 snapshot = meta_catchup.current_snapshot(store, run)
-                if snapshot is not None:
-                    meta = {"account_report": snapshot["account_report"], "meta_job_id": snapshot["job_id"]}
+                if snapshot:
+                    try:
+                        meta = snapshot_account(run, snapshot, step)
+                    except Stop:
+                        pass
+            if not meta:
+                meta, _ = collector(run, step, None, client_factory, meta_only=True)
+                if step == "campaign-strategy" and "collection_error" in meta:
+                    raise Stop("Refresh the GitHub Meta snapshot and sync it for current account-wide funding.")
             require("collection_error" not in meta, meta.get("collection_error", {}).get("unavailable", ""))
             context.update(meta)
         if media_needed(run):
@@ -290,6 +334,15 @@ def submit_step(store, run, packet):
     with configured(run["request"]["brand"]):
         result(step, output)
         bind_live_inputs(run, step, context, output)
+        if step == enrollment.STEP and output["status"] == "pass":
+            choice = output["data"]["decision"]
+            require(choice in {"keep_paused", "check_activation"}, "Choose a disposition for the existing paused draft.")
+            require(choice != "keep_paused" or output["data"]["findings"], "Record the reason for keeping the draft paused.")
+            if choice == "check_activation":
+                snapshot, target = candidate(store, run)
+                require(target and target["id"] == run["meta"]["id"] and snapshot["job_id"] == context["meta_job_id"],
+                        "Recollect the draft review against the newest Meta snapshot.")
+                run["meta"]["pending_batch"] = enrollment.prepare_adopted_batch(run, snapshot, target, output["data"])
         if step in ASSET_STEPS and output["status"] in {"pass", "limited"}:
             selected = output["data"] if step == "asset-selection" else run["records"]["asset-selection"]["data"]
             assets = current_media(run)["assets"]

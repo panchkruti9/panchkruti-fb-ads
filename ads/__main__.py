@@ -276,7 +276,7 @@ def main():
                 require(isinstance(values, dict) and values, "Supply a nonempty object of verified facts.")
                 with store.lease("executor"):
                     run = store.get(run["id"])
-                    require(run["status"] in {"blocked", "ready", "monitoring"} and not run.get("proposal"),
+                    require(run["status"] in {"blocked", "ready", "monitoring", "paused"} and not run.get("proposal"),
                             "Resolve the current proposal before editing inputs.")
                     run["request"].setdefault("facts", {}).update(values)
                     store.save(run, "facts_updated", {"sections": sorted(values)})

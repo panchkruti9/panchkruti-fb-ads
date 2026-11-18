@@ -9,7 +9,7 @@ description: Start manage ads, or handle a specific Meta Ads request. Use the br
 
 Treat **Start manage ads** as a request to manage the full lifecycle for all products already assigned to the saved brand. Use `python -m ads manage --connected`. If there is one saved brand, use it automatically. If the user specifies a narrower job or product, follow that scope. Use the saved product, market, policy and budget. Ask only when brand scope is ambiguous or a required decision is missing.
 
-Reuse existing run records. Continue through strategy, paused creation, approved launch, ongoing review, optimization, scaling and replacement when the evidence calls for it. Respect existing approvals and decisions to stop a campaign. If an existing Meta campaign has no registered run, report that campaign and the duplicate safeguard. Do not create another campaign to get around it.
+Reuse existing run records. Continue through strategy, paused creation, approved launch, ongoing review, optimization, scaling and replacement when the evidence calls for it. Respect existing approvals and decisions to stop a campaign. When `next` reports an existing campaign, collect the requested Shopify product read. The lifecycle registers a verified paused draft where the account, ad destinations and assigned product variant match. Follow the returned draft-review step on the same run.
 
 ## Set up a fresh copy
 
