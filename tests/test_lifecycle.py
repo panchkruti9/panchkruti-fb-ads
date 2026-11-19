@@ -603,6 +603,30 @@ class LifecycleTest(unittest.TestCase):
         self.assertFalse(self.run["request"]["facts"]["launch_audit"]["storefront"]["payment_completed"])
         self.assertIn("store-wide",self.run["request"]["facts"]["tracking"]["limitations"])
 
+    def test_readable_log_failure_cannot_undo_committed_execution_evidence(self):
+        import sqlite3
+        import io
+        from contextlib import redirect_stderr
+        revision=self.run["revision"]
+        with patch("meta_ads.report.write_logs",side_effect=sqlite3.OperationalError("simulated log lock failure")), redirect_stderr(io.StringIO()):
+            self.store.save(self.run,"verified_fixture_receipt",{"verified":True})
+        self.assertEqual(self.store.get(self.run["id"])["revision"],revision+1)
+        self.assertEqual(self.store.events(self.run["id"])[-1]["kind"],"verified_fixture_receipt")
+        self.store.refresh_logs()
+        self.assertTrue((self.store.logs_dir/"activity.md").exists())
+
+    def test_sales_window_waits_for_actual_delivery_when_launch_review_was_delayed(self):
+        from meta_ads.workflow import measured_window
+        self.reach_build();self.approve();self.execute();self.launch()
+        self.run["live_since"]=(now()-timedelta(days=20)).isoformat()
+        self.run["last_material_change_at"]=self.run["live_since"]
+        self.run["review_evidence"]=self.sales_evidence()
+        entry=self.run["campaign_ledger"][self.run["meta"]["id"]]
+        entry["first_delivery_on"]=(now().date()-timedelta(days=3)).isoformat()
+        self.assertIsNone(measured_window(self.run,"current"))
+        entry["first_delivery_on"]=(now().date()-timedelta(days=10)).isoformat()
+        self.assertIsNotNone(measured_window(self.run,"current"))
+
     def test_verified_activation_starts_budget_clock_but_paused_build_does_not(self):
         from meta_ads.ledger import summary
         self.reach_build();self.approve();self.execute()

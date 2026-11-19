@@ -133,7 +133,7 @@ class Store:
         try:
             with self.lease("logs"):
                 write_logs(self)
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as error:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, sqlite3.Error) as error:
             import sys
             print(f"The activity log could not be rendered ({type(error).__name__}). Run meta-ads log to retry.", file=sys.stderr)
 

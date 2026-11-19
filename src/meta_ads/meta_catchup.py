@@ -209,6 +209,8 @@ def record(store, run):
     since = run.get("meta_catchup_at") or run.get("live_since") or run["created_at"]
     unseen = []
     ledger_changed = False
+    from .ledger import summary as ledger_summary
+    previous_delivery = ledger_summary(run)["first_delivery_on"]
     for entry in snapshots(store, run):
         from .ledger import apply_snapshot
         try:
@@ -227,7 +229,11 @@ def record(store, run):
     if unseen or ledger_changed:
         if unseen:
             run["meta_catchup_at"] = unseen[-1]["at"]
-        store.save(run, "meta_catchup", {"campaign_id": target["id"], "snapshots": unseen})
+        first_delivery = ledger_summary(run)["first_delivery_on"]
+        store.save(run, "agi_delivery_started" if first_delivery and not previous_delivery else "meta_catchup", {
+            "campaign_id": target["id"], "snapshots": unseen, "first_delivery_on": first_delivery,
+            "detail": ("First AGI delivery observed on " + first_delivery + " (Meta account-local reporting date).")
+                      if first_delivery and not previous_delivery else "Imported scheduled campaign observations."})
     return run
 
 

@@ -117,6 +117,7 @@ def observe(entry, reading, daily=None):
 
 def refresh(store, run, client):
     changed = False
+    previous_delivery = summary(run)["first_delivery_on"]
     for entry in run.get("campaign_ledger", {}).values():
         if not entry.get("launch_verified_at"):
             continue
@@ -138,11 +139,13 @@ def refresh(store, run, client):
             changed = True
     if changed:
         totals = summary(run)
-        store.save(run, "agi_spend_updated", {
+        first_delivery = bool(totals["first_delivery_on"] and not previous_delivery)
+        store.save(run, "agi_delivery_started" if first_delivery else "agi_spend_updated", {
             "spent_since_start_minor": totals["spent_since_start_minor"],
             "spent_month_minor": totals["spent_month_minor"],
             "first_delivery_on": totals["first_delivery_on"],
-            "detail": "Updated campaign spend since verified AGI launch; excluded previous account spending."})
+            "detail": ("First AGI delivery observed on " + totals["first_delivery_on"] + " (Meta account-local reporting date).")
+                      if first_delivery else "Updated campaign spend since verified AGI launch; excluded previous account spending."})
     return run
 
 

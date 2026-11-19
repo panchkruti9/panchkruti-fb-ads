@@ -176,6 +176,9 @@ def measured_window(run, key):
         changed_at = run.get("last_material_change_at") or run.get("live_since")
         if not changed_at or start <= parse_time(changed_at).astimezone(zone).date():
             return None
+        delivery = run.get("campaign_ledger", {}).get(run["meta"]["id"], {}).get("first_delivery_on")
+        if delivery and start <= date.fromisoformat(delivery):
+            return None
         rows = meta.get("rows", {}).get("campaign", [])
         orders = shop[denominator]
         if len(rows) != 1 or type(orders) is not int or orders < 0 or shop.get("pending_journey", 0):

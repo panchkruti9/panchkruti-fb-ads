@@ -161,8 +161,11 @@ def render(store, run):
 def atomic_text(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + "." + uuid.uuid4().hex + ".tmp")
-    temporary.write_text(text, encoding="utf-8")
-    temporary.replace(path)
+    try:
+        temporary.write_text(text, encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def write_logs(store):
