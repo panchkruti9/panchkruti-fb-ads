@@ -35,7 +35,9 @@ def show(run):
         "campaign": {key: run["meta"].get(key) for key in ("id", "name")},
         "operator_setup_needed": setup,
         "approval_needed": {"id": proposal["id"], "action": proposal["operation"],
-                            "impact": proposal["impact"]} if proposal and run["status"] == "awaiting_approval" and not setup else None,
+                            "impact": proposal["impact"],
+                            "spend_control_change": proposal["action"].get("spend_control_change")}
+                           if proposal and run["status"] == "awaiting_approval" and not setup else None,
     }
 
 

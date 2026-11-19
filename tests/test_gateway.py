@@ -90,6 +90,18 @@ class GatewayTest(unittest.TestCase):
         with self.assertRaisesRegex(Stop,"changed during"):
             gateway.import_result(self.store,self.run,result)
 
+    def test_activation_receipt_can_add_verified_launch_facts_but_cannot_change_product_scope(self):
+        remote=deepcopy(self.run)
+        remote["request"].setdefault("facts",{})["tracking"]={"purchase_verified":True}
+        receipt={"run":remote,"base_revision":self.run["revision"],"job_id":"b"*32,
+                 "operation":"activation","status":"verified","events":[]}
+        updated=gateway.import_result(self.store,self.run,receipt)
+        self.assertTrue(updated["request"]["facts"]["tracking"]["purchase_verified"])
+        forged=deepcopy(receipt);forged["job_id"]="c"*32
+        forged["run"]["request"]["product_id"]="999"
+        with self.assertRaisesRegex(Stop,"another scope"):
+            gateway.import_result(self.store,updated,forged)
+
     def test_bundle_cannot_escape_private_job_directory(self):
         buffer=io.BytesIO()
         with zipfile.ZipFile(buffer,"w") as archive:archive.writestr("../outside.json","bad")

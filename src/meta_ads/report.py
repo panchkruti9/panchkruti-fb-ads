@@ -1,6 +1,7 @@
 """User-facing status and readable logs from committed records."""
 import re
 import uuid
+from decimal import Decimal
 from .meta import account_zone
 from .state import REGISTRY, parse_time
 
@@ -25,6 +26,17 @@ def describe(run):
     elif state == "awaiting_approval":
         action, when, owner = f"Review the {proposal['operation']} proposal and its impact.", "After approval", "user"
         question = f"Approve the displayed {proposal['operation']} proposal?"
+        change = proposal.get("action", {}).get("spend_control_change")
+        if change:
+            rules = (run["request"].get("brand") or {}).get("policy", {})
+            scale = rules.get("minor_per_unit", 100)
+            decimals = {1: 0, 100: 2, 1000: 3}[scale]
+            def money(value):
+                return f"{rules.get('currency', 'currency')} {Decimal(value) / scale:,.{decimals}f}"
+            action = (f"Launch at {money(proposal['impact']['daily_minor'])}/day and change the account-wide spending limit "
+                      f"from {money(change['from_minor'])} to {money(change['to_minor'])}, "
+                      f"leaving {money(change['remaining_minor'])} additional allowance.")
+            question = "Approve this exact combined launch and account-wide spending-limit proposal?"
     elif state in {"approved", "execution_blocked"}:
         action, when, owner = "Resume the exact authorized Meta operation and verify its readback.", "Now", "agent"
     elif state == "blocked":

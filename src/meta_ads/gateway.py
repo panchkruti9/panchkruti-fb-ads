@@ -167,7 +167,16 @@ def submit_job(store, run, operation, options=None, *, wait_seconds=180):
 
 def import_result(store, run, result):
     remote = result["run"]
-    require(remote["id"] == run["id"] and remote["request"] == run["request"], "Meta job returned another scope.")
+    local_request, remote_request = run["request"], remote["request"]
+    same_request = remote_request == local_request
+    if result["operation"] == "activation":
+        permitted = {"tracking", "spend_control", "launch_audit"}
+        same_request = (
+            {k: v for k, v in local_request.items() if k != "facts"}
+            == {k: v for k, v in remote_request.items() if k != "facts"}
+            and {k: v for k, v in local_request.get("facts", {}).items() if k not in permitted}
+            == {k: v for k, v in remote_request.get("facts", {}).items() if k not in permitted})
+    require(remote["id"] == run["id"] and same_request, "Meta job returned another scope.")
     with store.lease("executor"):
         current = store.get(run["id"])
         applied = current.get("meta_jobs", [])
