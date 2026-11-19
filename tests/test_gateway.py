@@ -118,4 +118,23 @@ class GatewayTest(unittest.TestCase):
         with patch("meta_ads.workflow.measured_window",return_value=None):
             self.assertFalse(performance_mature(run))
 
+    def test_launch_audit_collects_other_checks_without_saved_tracking_or_pixel_permission(self):
+        run={"meta":{"id":"123","name":"agi-launch-test","pending_batch":{
+            "identity":{"pixel_id":"456"},"ad_ids":[{"id":"789","placements":["facebook_feed"]}]}}}
+        class Client:
+            prefix="act_99"
+            def details(self):return {"account_status":1}
+            def budget(self):return {"passed":True}
+            def scope(self,*args):return {"id":"123","configured_status":"PAUSED"}
+            def pages(self,*args):return [{"id":"456"}]
+            def request(self,path,params):
+                if path.endswith("/stats"):raise Stop("Pixel statistics permission unavailable")
+                return {"account_id":"99","spend_cap":"10000","amount_spent":"0"}
+        with patch("meta_ads.execution.previews",return_value={"789":["facebook_feed"]}), patch("meta_ads.meta_catchup.draft_readback",return_value={"ads":[]}):
+            report=gateway.launch_audit(run,Client())
+        self.assertIn("purchase_source",report["issues"])
+        self.assertIn("spend_control",report["checks"])
+        self.assertIn("previews",report["checks"])
+        self.assertEqual(report["checks"]["campaign"]["configured_status"],"PAUSED")
+
 if __name__ == "__main__":unittest.main()

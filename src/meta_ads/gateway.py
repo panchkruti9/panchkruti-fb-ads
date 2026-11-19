@@ -20,7 +20,7 @@ TAG = "meta-jobs"
 WORKFLOW = "meta-jobs.yml"
 MAX_BUNDLE = 256 * 1024 * 1024
 OPERATIONS = {"readiness", "account", "collect", "health", "review", "prepare", "activation",
-              "budget-validation", "execute", "reconcile", "verify"}
+              "budget-validation", "execute", "reconcile", "verify", "launch-audit"}
 
 
 def directory(store):
@@ -98,7 +98,7 @@ def job_folder(store, job_id):
 def pack_request(store, run, operation, options):
     require(operation in OPERATIONS, "Unsupported Meta operation.")
     scope = {"run": run["id"], "revision": run["revision"], "operation": operation, "options": options}
-    if operation in {"readiness", "account", "collect", "review", "verify"}:
+    if operation in {"readiness", "account", "collect", "review", "verify", "launch-audit"}:
         scope["read_window"] = int(time.time() // 300)
     job_id = fingerprint(scope)[:32]
     folder = job_folder(store, job_id)
@@ -234,6 +234,8 @@ def perform(store, run, operation, options):
             return ready
         if operation == "account":
             return {"details": client.details(), "report": client.account_report(), "budget": client.budget()}
+        if operation == "launch-audit":
+            return launch_audit(run, client)
         if operation == "collect":
             context, _ = collector(run, run["step"], None, lambda _: client, meta_only=True)
             return context
@@ -270,6 +272,35 @@ def perform(store, run, operation, options):
             campaign = client.scope(target["id"], "campaign", target["name"])
             return {"campaign": campaign, "draft": draft_readback(client, target)}
     raise Stop("Unsupported Meta job operation.")
+
+
+def launch_audit(run, client):
+    """Collect independent live checks before requesting any owner-supplied evidence."""
+    from .execution import previews
+    from .meta_catchup import draft_readback
+    from .state import now
+    batch = run["meta"].get("pending_batch") or run.get("last_receipt") or {}
+    pixel = (batch.get("identity") or {}).get("pixel_id")
+    end = int(now().timestamp())
+    checks = {
+        "account": client.details,
+        "budget": client.budget,
+        "spend_control": lambda: client.request(client.prefix, {"fields": "account_id,spend_cap,amount_spent"}),
+        "campaign": lambda: client.scope(run["meta"]["id"], "campaign", run["meta"]["name"]),
+        "draft": lambda: draft_readback(client, run["meta"]),
+        "previews": lambda: previews(client, batch["ad_ids"]),
+    }
+    if pixel:
+        checks["account_pixels"] = lambda: list(client.pages(client.prefix + "/adspixels", "id,name"))
+        checks["purchase_source"] = lambda: client.request(pixel + "/stats", {
+            "aggregation": "event_total_counts", "start_time": end - 7 * 86400, "end_time": end})
+    report = {"observed_at": stamp(), "pixel_id": pixel, "checks": {}, "issues": {}}
+    for name, collect in checks.items():
+        try:
+            report["checks"][name] = collect()
+        except (Stop, OSError, KeyError, ValueError, TypeError) as error:
+            report["issues"][name] = str(error) if isinstance(error, Stop) else type(error).__name__
+    return report
 
 
 def run_job(job_id, location):
