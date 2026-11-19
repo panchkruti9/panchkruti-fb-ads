@@ -20,7 +20,7 @@ TAG = "meta-jobs"
 WORKFLOW = "meta-jobs.yml"
 MAX_BUNDLE = 256 * 1024 * 1024
 OPERATIONS = {"readiness", "account", "collect", "health", "review", "prepare", "activation",
-              "budget-validation", "execute", "reconcile", "verify", "launch-audit"}
+              "budget-validation", "execute", "reconcile", "verify", "launch-audit", "accounting"}
 
 
 def directory(store):
@@ -249,8 +249,19 @@ def perform(store, run, operation, options):
             context, _ = collector(run, run["step"], None, lambda _: client, meta_only=True)
             return context
         if operation == "health":
+            from .ledger import refresh
+            refresh(store, run, client)
             monitor_waiting(store, run, lambda _: client)
             return None
+        if operation == "accounting":
+            from .ledger import refresh, summary, read_spending
+            if summary(run)["started"]:
+                refresh(store, run, client)
+            else:
+                run["prelaunch_spending"] = read_spending(client, run["meta"])
+                store.save(run, "prelaunch_spend_checked", {
+                    "detail": "Read exact campaign spend before launch. AGI accounting remains not started; no platform budget or ad status changed."})
+            return summary(run)
         if operation == "review":
             def absent(*_args, **_kwargs):
                 raise Stop("Shopify windows are provided by the connected agent.")

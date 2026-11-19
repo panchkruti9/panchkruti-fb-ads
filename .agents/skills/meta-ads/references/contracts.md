@@ -98,3 +98,10 @@ On a scheduled strategy refresh, configured runs return a `cycle_action` of `con
 ### User-facing updates
 
 Every committed step refreshes `logs/activity.md` and `logs/<brand>/<campaign>.md`. Use the CLI's `update` fields to report completed work, the current task, next action, timing and responsible party. Technical IDs remain available for diagnosis; they are not the main user-facing status. Ask for a real missing business decision or exact required approval, and preserve what was already authorized. Continue independent work while awaiting that answer.
+
+
+### AGI launch and spend ledger
+
+A paused build or approved plan does not start AGI spending. Before activation, capture exact campaign Insights for the account-local launch day and month as a baseline, persist it before mutation, and preserve it across ambiguous-write recovery. On verified activation, record `launch_verified_at`. Record the first observed delivery separately as a date when only daily Insights are available. Use absolute campaign totals less the saved pre-start baseline, not account `amount_spent`, to measure AGI usage. Repeated snapshots replace observations instead of adding them twice. A replacement campaign retains the preceding campaign's ledger; a new month retains total spend while starting a new monthly counter. Never turn an unknown legacy baseline into zero.
+
+The readable log shows start, first delivery, daily budget, spend since start, month spend, observation date, next review and responsible party. Meta's account spending counter, account limit and account-wide funding checks remain separate. Earlier account spending cannot be charged to a new AGI run. A temporary reporting read failure is an agent-owned reconciliation task; preserve unknown/stale evidence and existing authorized execution rather than inventing a number or asking the owner to calculate it.

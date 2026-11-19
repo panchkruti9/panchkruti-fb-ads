@@ -103,6 +103,7 @@ def budget_projection(funding, rules):
     remaining = minor(funding["assumed_remaining_days"], positive=True)
     projected = int(spend) + amount * remaining
     return {"as_of": funding["as_of"], "timezone": funding["timezone"], "spent_month_minor": int(spend),
+            "scope": "account-wide", "account_spent_month_minor": int(spend),
             "assumed_remaining_days": remaining, "daily_minor": amount, "monthly_minor": projected,
             "passed": (rules["minimum_daily_minor"] <= amount <= rules["maximum_daily_minor"]
                        and projected <= rules["maximum_monthly_minor"])}

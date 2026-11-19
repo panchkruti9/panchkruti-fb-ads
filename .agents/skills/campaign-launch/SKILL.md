@@ -19,3 +19,5 @@ On verified activation, save the first review time, account timezone, reporting 
 
 
 If the account spending limit is exhausted or unsuitable, prepare the exact bounded account-wide change inside the launch proposal. Show its existing/new limit, additional allowance and campaign daily budget. Require the owner's explicit approval once for the combined proposal. Never silently raise or delete the account limit, reset the spend counter, or describe the account-wide change as applying only to this campaign. An empty owner whitelist uses the current user's recorded explicit approval; populated whitelists remain enforced.
+
+Before activation the executor records a campaign-scoped spend baseline. Only verified activation starts the AGI budget clock. Keep first observed delivery separate, preserve the baseline on retries, and exclude pre-start or other-campaign spending. The campaign log must show these values and the next check. A temporary Insights failure records unknown spend for agent reconciliation; it does not create a new owner questionnaire or fabricate zero.

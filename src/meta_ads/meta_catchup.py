@@ -208,15 +208,25 @@ def record(store, run):
     target = run["meta"]
     since = run.get("meta_catchup_at") or run.get("live_since") or run["created_at"]
     unseen = []
+    ledger_changed = False
     for entry in snapshots(store, run):
+        from .ledger import apply_snapshot
+        try:
+            ledger_changed = apply_snapshot(run, entry) or ledger_changed
+        except (Stop, OSError, KeyError, TypeError, ValueError) as error:
+            message = str(error) if isinstance(error, Stop) else f"Snapshot accounting needs agent reconciliation ({type(error).__name__})."
+            if run.get("accounting_snapshot_issue") != message:
+                run["accounting_snapshot_issue"] = message
+                ledger_changed = True
         campaign = entry["campaigns"].get(target["id"])
         if campaign and campaign["name"] == target["name"] and parse_time(entry["observed_at"]) > parse_time(since):
             recent = [row for row in campaign["daily"]["campaign"] if row["date_start"] == entry["last_complete_day"]]
             unseen.append({"job_id": entry["job_id"], "at": entry["observed_at"], "status": campaign["effective_status"],
                            "dates": [entry["first_day"], entry["last_complete_day"]],
                            "yesterday": recent, "alerts": campaign["alerts"]})
-    if unseen:
-        run["meta_catchup_at"] = unseen[-1]["at"]
+    if unseen or ledger_changed:
+        if unseen:
+            run["meta_catchup_at"] = unseen[-1]["at"]
         store.save(run, "meta_catchup", {"campaign_id": target["id"], "snapshots": unseen})
     return run
 

@@ -603,6 +603,23 @@ class LifecycleTest(unittest.TestCase):
         self.assertFalse(self.run["request"]["facts"]["launch_audit"]["storefront"]["payment_completed"])
         self.assertIn("store-wide",self.run["request"]["facts"]["tracking"]["limitations"])
 
+    def test_verified_activation_starts_budget_clock_but_paused_build_does_not(self):
+        from meta_ads.ledger import summary
+        self.reach_build();self.approve();self.execute()
+        before=summary(self.run)
+        self.assertFalse(before["started"])
+        self.assertEqual(before["spent_since_start_minor"],0)
+        self.launch()
+        after=summary(self.run)
+        self.assertTrue(after["started"])
+        self.assertEqual(after["launch_verified_at"],self.run["live_since"])
+        self.assertEqual(after["spent_since_start_minor"],0)
+        self.assertIsNone(after["first_delivery_on"])
+        events=self.store.events(self.run["id"])
+        baseline=next(e["sequence"] for e in events if e["kind"]=="agi_spend_baseline_saved")
+        activation=next(e["sequence"] for e in events if e["kind"]=="meta_write_pending" and str(e["payload"].get("operation","")).startswith("activate:"))
+        self.assertLess(baseline,activation)
+
     def test_build_cannot_write_without_approval_then_activation_schedules_monitoring(self):
         self.reach_build()
         with self.assertRaises(Stop):

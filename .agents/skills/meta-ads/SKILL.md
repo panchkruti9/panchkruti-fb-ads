@@ -19,3 +19,5 @@ Use the current root project. Treat **Start manage ads** as authorization to con
 On wake, `manage --connected` imports encrypted Meta snapshots. Review the eligible Meta/Shopify dates once across missed days, then continue the saved route. GitHub can record Meta history while the agent is closed; plugin research and creative decisions require a running connected agent. Do not describe a read-only schedule as a full autonomous agent.
 
 Use [the skill map](references/skill-map.md) for all lifecycle responsibilities. No direct shortcut around saved approvals or exact account scope.
+
+Use `agi_spending` from status and the readable log for the verified AGI start, first delivery and spend since start. A paused build has no AGI start and uses no AGI budget. Keep Meta account counters and limits separate. Do not repeat an unchanged owner question on each wake; continue independent checks and only notify when there is a new result, changed proposal or genuinely new decision.

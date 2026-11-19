@@ -464,8 +464,10 @@ def execute(store, run_id, client_factory=None):
                        proposal=None, blockers=[])
             run.pop("approval", None)
         elif op == "activate":
+            from .ledger import mark_launched
+            mark_launched(run, receipt)
             run["meta"].pop("pending_batch", None)
-            run.setdefault("live_since", stamp())
+            run.setdefault("live_since", receipt.get("launch_verified_at") or stamp())
             if run.get("create_mode") == "recreate":
                 run["live_since"] = stamp()
                 if run.get("previous_campaigns"):
@@ -485,6 +487,9 @@ def execute(store, run_id, client_factory=None):
             scaling = run["records"].get("scaling-proposal", {}).get("data", {}) if op == "budget" else {}
             schedule(run, review_date=scaling.get("next_review_on"))
         store.save(run, "execution_verified", {"operation": op, "proposal": p["id"], "receipt": receipt})
+        if op == "activate":
+            from .ledger import refresh
+            refresh(store, run, client)
         return run
 
 

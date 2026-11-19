@@ -77,3 +77,5 @@ Report **Done**, **Now**, **Next and when**, and **Your action** only when neede
 Run `python -m unittest discover -s tests -v`. Simulations use temporary state and a fake Meta API. Live verification must be labeled separately and does not authorize activation.
 
 Launch checks collect available Meta and public checkout evidence automatically. An exhausted account limit is presented as a concrete, bounded account-wide change within the launch proposal, requiring explicit owner approval before execution. Store-wide Purchase activity and checkout navigation are recorded with their limits; no automatic paid test order is placed.
+
+AGI accounting starts on verified campaign activation. Logs separate that timestamp from the first observed delivery date, deduct a saved pre-start campaign baseline, and show campaign spend since start and this month. Earlier account spending stays in a separate Meta account-control section. Catch-up snapshots replace absolute observations, so retries and missed-day imports do not double-count spend.

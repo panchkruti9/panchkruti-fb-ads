@@ -131,8 +131,9 @@ class Store:
     def refresh_logs(self):
         from .report import write_logs
         try:
-            write_logs(self)
-        except (OSError, ValueError) as error:
+            with self.lease("logs"):
+                write_logs(self)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as error:
             import sys
             print(f"The activity log could not be rendered ({type(error).__name__}). Run meta-ads log to retry.", file=sys.stderr)
 
@@ -144,9 +145,9 @@ class Store:
     @contextmanager
     def lease(self, name):
         # A separate SQLite transaction supplies a process lock which the OS releases on exit.
-        require(name in {"worker", "executor"}, "Invalid lease.")
+        require(name in {"worker", "executor", "logs"}, "Invalid lease.")
         path = self.path.with_suffix(self.path.suffix + f".{name}")
-        db = sqlite3.connect(path, timeout=0, isolation_level=None)
+        db = sqlite3.connect(path, timeout=20 if name == "logs" else 0, isolation_level=None)
         try:
             try:
                 db.execute("BEGIN EXCLUSIVE")

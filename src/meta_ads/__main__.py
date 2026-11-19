@@ -24,9 +24,10 @@ def read(path):
 
 
 def show(run):
+    from .ledger import summary as spending
     proposal = run.get("proposal")
     setup = approval_setup(run) if run["status"] == "awaiting_approval" else []
-    return {"update": describe(run)} | {key: run.get(key) for key in ("id", "revision", "group", "step", "status", "outcome", "next_review_at",
+    return {"update": describe(run), "agi_spending": spending(run)} | {key: run.get(key) for key in ("id", "revision", "group", "step", "status", "outcome", "next_review_at",
                                           "strategy_version", "blockers", "last_receipt", "waiting_health")} | {
         "product_id": run["request"]["product_id"],
         "brand_id": (run["request"].get("brand") or {}).get("brand_id"),

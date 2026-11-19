@@ -594,6 +594,8 @@ class Executor:
                 require(storefront(obj["destination"])["reachable"], "Ad destination is no longer reachable.")
         active_parent = any(n["kind"] == "campaign" and self.journal.get("activate:" + n["id"], {}).get("response")
                             for n in batch["objects"])
+        from .ledger import capture_baseline
+        capture_baseline(self.store, self.run, self.client, batch)
         change = self.action.get("spend_control_change")
         if change:
             self.budget(add=0 if batch["addition"] or active_parent else batch["daily_minor"])
@@ -604,7 +606,7 @@ class Executor:
             if obj["kind"] == "campaign" and "activate:" + oid not in self.journal:
                 self.budget(add=batch["daily_minor"], enforce_cap=True)
             self.update("activate:" + oid, oid, "configured_status", "PAUSED", "ACTIVE")
-        receipt = {"campaign_id": batch["campaign_id"], "objects": [
+        receipt = {"campaign_id": batch["campaign_id"], "launch_verified_at": stamp(), "objects": [
             self.client.owned(n["id"], "configured_status,effective_status") for n in batch["objects"]]}
         if change:
             receipt["spend_control"] = self.journal["account-spend-cap"]["readback"]
