@@ -75,3 +75,5 @@ Report **Done**, **Now**, **Next and when**, and **Your action** only when neede
 ## Verification
 
 Run `python -m unittest discover -s tests -v`. Simulations use temporary state and a fake Meta API. Live verification must be labeled separately and does not authorize activation.
+
+Launch checks collect available Meta and public checkout evidence automatically. An exhausted account limit is presented as a concrete, bounded account-wide change within the launch proposal, requiring explicit owner approval before execution. Store-wide Purchase activity and checkout navigation are recorded with their limits; no automatic paid test order is placed.

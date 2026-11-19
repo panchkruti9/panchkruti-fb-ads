@@ -325,13 +325,49 @@ def codex_result(run, step, context, images, scratch):
     return result
 
 
-def activation(run, client):
+def activation(run, client, *, store=None):
     batch = run["meta"]["pending_batch"]
-    facts = run["request"].get("facts", {})
+    facts = run["request"].setdefault("facts", {})
     tracking, cap = facts.get("tracking", {}), facts.get("spend_control", {})
+    if not (tracking.get("purchase_verified") and tracking.get("checkout_verified") and cap.get("reference")):
+        from .gateway import launch_audit
+        from .sources import launch_storefront
+        audit = launch_audit(run, client)
+        try:
+            shop = launch_storefront(run)
+        except (Stop, OSError, ValueError) as error:
+            shop = {"issue": str(error) if isinstance(error, Stop) else type(error).__name__}
+        facts["launch_audit"] = {"meta": audit, "storefront": shop}
+        checks = audit["checks"]
+        pixel = audit["pixel_id"]
+        purchases = sum(int(event.get("count", 0))
+                        for row in checks.get("purchase_source", {}).get("data", [])
+                        for event in row.get("data", []) if event.get("value") == "Purchase")
+        source_owned = any(item.get("id") == pixel for item in checks.get("account_pixels", []))
+        configured = bool(checks.get("draft", {}).get("adsets")) and all(
+            item.get("promoted_object", {}).get("pixel_id") == pixel
+            and item.get("promoted_object", {}).get("custom_event_type") == "PURCHASE"
+            for item in checks["draft"]["adsets"])
+        ready = source_owned and configured and pixel in shop.get("installed_meta_pixels", []) and purchases > 0
+        tracking = facts["tracking"] = {
+            "product_id": run["request"]["product_id"], "variant_id": run["request"].get("variant_id"),
+            "pixel_id": pixel, "purchase_verified": ready,
+            "checkout_verified": shop.get("checkout_reachable", False), "observed_at": audit["observed_at"],
+            "reference": "Live Meta pixel statistics, owned Purchase configuration, installed storefront pixel and variant checkout navigation",
+            "purchase_events_observed": purchases, "purchase_window_days": 7,
+            "verification_scope": "Store-wide pixel Purchase activity and assigned variant checkout navigation",
+            "limitations": "No paid test order was placed. Pixel totals are store-wide, not proof this product sold or that event deduplication is correct."}
+        control = checks.get("spend_control")
+        if control:
+            cap = facts["spend_control"] = {"reference": "Live Meta account spending-limit readback",
+                                           "observed_at": audit["observed_at"], **control}
+        if store:
+            store.save(run, "launch_evidence_collected", {"purchase_source_verified": ready,
+                        "checkout_reachable": tracking["checkout_verified"], "purchase_events": purchases,
+                        "issues": audit["issues"]})
     require(tracking.get("purchase_verified") is True and tracking.get("checkout_verified") is True
             and tracking.get("reference") and tracking.get("observed_at"),
-            "Provide current checkout and Purchase verification for the approved Shopify destination.")
+            "Automated launch checks could not verify checkout and the installed Purchase source. Inspect the saved launch audit for the specific failed read or check.")
     require(tracking.get("product_id") == run["request"]["product_id"]
             and tracking.get("pixel_id") == (batch.get("identity", {}).get("pixel_id") or account_identity("pixel_id")),
             "Tracking evidence does not identify this product and Purchase event source.")
@@ -343,6 +379,7 @@ def activation(run, client):
     urls = {obj["destination"] for obj in batch["objects"] if obj["kind"] == "ad"}
     require(all(storefront(url)["reachable"] for url in urls), "Product destination did not pass the live check.")
     placement_checks = previews(client, batch["ad_ids"])
+    run.pop("help_request", None)
     return output("Verified preview availability and storefront. Review actual Meta previews before approval.",
                   {"destination_ok": True, "purchase_event_ok": True, "checkout_ok": True,
                    "preview_checks": placement_checks, "tracking_reference": tracking["reference"],
@@ -490,7 +527,7 @@ def tick_configured(store, run, agent, client_factory):
                 assets = current_media(run)["assets"]
             return prepare(store, run, client_factory(run), assets=assets)
         if step == "activation-check":
-            return submit(store, run, activation(run, client_factory(run)))
+            return submit(store, run, activation(run, client_factory(run), store=store))
         if step == "performance-analysis" and "review_evidence" not in run:
             try:
                 run["review_evidence"] = review_inputs(run, client_factory(run))

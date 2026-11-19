@@ -252,7 +252,7 @@ def perform(store, run, operation, options):
             return None
         if operation == "activation":
             from .workflow import submit
-            submit(store, run, activation(run, client))
+            submit(store, run, activation(run, client, store=store))
             return None
         if operation == "budget-validation":
             from .worker import tick

@@ -9,8 +9,9 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlencode
-from urllib.request import Request, build_opener
+from urllib.parse import urlencode, urlsplit
+from urllib.request import Request, build_opener, HTTPCookieProcessor
+from http.cookiejar import CookieJar
 
 from .meta import NoRedirect, Stop, account_zone, brand_profile, canonical, destination, policy, require
 from .state import stamp
@@ -318,6 +319,55 @@ def storefront(url):
                 "observed_at": stamp()}
     except (Stop, ValueError):
         return {"url": url, "reachable": False, "observed_at": stamp()}
+
+
+def launch_storefront(run):
+    """Check the installed pixel and reach variant checkout without placing an order."""
+    request = run["request"]
+    batch = run["meta"]["pending_batch"]
+    urls = {item["destination"] for item in batch["objects"] if item["kind"] == "ad"}
+    require(len(urls) == 1, "Inspect each distinct product destination before launch.")
+    url = destination(next(iter(urls)))
+    body = fetch(url, {"User-Agent": "Mozilla/5.0"}, cap=3_000_000).decode("utf-8", "replace")
+    pixels = []
+    marker = "webPixelsConfigList:"
+    start = body.find(marker)
+    if start >= 0:
+        try:
+            configurations, _ = json.JSONDecoder().raw_decode(body[start + len(marker):].lstrip())
+            for item in configurations:
+                config = item.get("configuration", "{}")
+                for _ in range(2):
+                    if isinstance(config, str):
+                        config = json.loads(config)
+                if isinstance(config, dict) and config.get("pixel_type") == "facebook_pixel":
+                    pixels.append(str(config["pixel_id"]))
+        except (ValueError, KeyError, TypeError):
+            pass
+    report = {"observed_at": stamp(), "product_id": request["product_id"],
+              "variant_id": request.get("variant_id"), "destination": url,
+              "installed_meta_pixels": pixels, "checkout_reachable": False,
+              "payment_completed": False, "method": "variant_checkout_navigation_no_order"}
+    variant = request.get("variant_id")
+    if not variant:
+        report["checkout_issue"] = "No exact variant is assigned for automated checkout navigation."
+        return report
+    origin = urlsplit(url)
+    cart = f"{origin.scheme}://{origin.netloc}/cart/{variant}:1"
+    try:
+        opener = build_opener(HTTPCookieProcessor(CookieJar()))
+        with opener.open(Request(cart, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as response:
+            checkout = response.read(3_000_000).decode("utf-8", "replace")
+            final = urlsplit(response.url)
+            host = final.hostname or ""
+            approved_host = host == origin.hostname or host.endswith(".myshopify.com") or host == "checkout.shopify.com"
+            report["checkout_reachable"] = bool(response.status == 200 and final.scheme == "https"
+                                               and approved_host and "/checkout" in final.path
+                                               and "checkout" in checkout.lower())
+            report["checkout_host"] = host
+    except (OSError, ValueError):
+        report["checkout_issue"] = "The public checkout navigation did not complete."
+    return report
 
 
 def windows(run, account):

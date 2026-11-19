@@ -453,7 +453,7 @@ class LifecycleTest(unittest.TestCase):
             run = {"request": {}, "step": "campaign-build"}
             self.assertEqual(len(approval_setup(run)), 1)
             run["step"] = "activate"
-            self.assertEqual(len(approval_setup(run)), 2)
+            self.assertEqual(len(approval_setup(run)), 1)
 
     def test_learning_status_is_optional_and_does_not_discard_sales_reports(self):
         self.reach_build()
@@ -555,6 +555,53 @@ class LifecycleTest(unittest.TestCase):
         self.approve(owner="fixture owner")
         self.execute()
         self.assertEqual(self.run["status"], "monitoring")
+
+    def test_exhausted_account_cap_is_proposed_then_written_in_major_units_only_after_approval(self):
+        from decimal import Decimal
+        self.reach_build(); self.approve(); self.execute()
+        original=self.client.request
+        account={"spend_cap":100000,"amount_spent":100001}
+        cap_posts=[]
+        def request_with_cap(path,params,*,post=False):
+            if path==self.client.prefix:
+                if post:
+                    cap_posts.append(params)
+                    account["spend_cap"]=int(Decimal(params["spend_cap"])*100)
+                    return {"success":True}
+                return dict(account)
+            return original(path,params,post=post)
+        self.client.request=request_with_cap
+        self.run=run_due(self.store,only=self.run["id"],client_factory=lambda _:self.client)[0]
+        self.assertEqual(self.run["status"],"awaiting_approval")
+        change=self.run["proposal"]["action"]["spend_control_change"]
+        self.assertEqual(cap_posts,[])
+        self.assertGreater(change["to_minor"],account["amount_spent"])
+        with self.assertRaises(Stop):self.execute()
+        self.approve(owner="fixture owner");self.execute()
+        self.assertEqual(self.run["status"],"monitoring")
+        self.assertEqual(len(cap_posts),1)
+        self.assertEqual(Decimal(cap_posts[0]["spend_cap"])*100,change["to_minor"])
+        self.assertEqual(self.run["last_receipt"]["spend_control"]["spend_cap_minor"],change["to_minor"])
+
+    def test_missing_launch_facts_are_collected_from_live_checks_without_user_test_order(self):
+        from meta_ads.worker import activation
+        self.reach_build();self.approve();self.execute()
+        self.run["request"]["facts"].pop("tracking")
+        self.run["request"]["facts"].pop("spend_control")
+        batch=self.run["meta"]["pending_batch"]
+        pixel=batch["identity"]["pixel_id"]
+        audit={"observed_at":stamp(),"pixel_id":pixel,"issues":{},"checks":{
+            "purchase_source":{"data":[{"data":[{"value":"Purchase","count":2}]}]},
+            "account_pixels":[{"id":pixel}],
+            "draft":{"adsets":[{"promoted_object":{"pixel_id":pixel,"custom_event_type":"PURCHASE"}}]},
+            "spend_control":{"spend_cap":"100000","amount_spent":"10"}}}
+        shop={"installed_meta_pixels":[pixel],"checkout_reachable":True,"payment_completed":False}
+        with patch("meta_ads.gateway.launch_audit",return_value=audit), patch("meta_ads.sources.launch_storefront",return_value=shop):
+            result=activation(self.run,self.client,store=self.store)
+        self.assertTrue(result["data"]["purchase_event_ok"])
+        self.assertTrue(result["data"]["checkout_ok"])
+        self.assertFalse(self.run["request"]["facts"]["launch_audit"]["storefront"]["payment_completed"])
+        self.assertIn("store-wide",self.run["request"]["facts"]["tracking"]["limitations"])
 
     def test_build_cannot_write_without_approval_then_activation_schedules_monitoring(self):
         self.reach_build()

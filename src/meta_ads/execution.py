@@ -6,6 +6,7 @@ import os
 import re
 import uuid
 from datetime import date, timedelta
+from decimal import Decimal
 from urllib.error import HTTPError
 from urllib.request import Request
 
@@ -34,9 +35,8 @@ def approval_setup(run):
     missing = []
     if "operators" in rules and not rules["operators"]:
         missing.append("Assign an authorized operator in the saved brand policy.")
-    if operation in rules.get("owner_approval_actions", OWNER_ACTIONS):
-        if "owners" in rules and not rules["owners"]:
-            missing.append("Assign the owner authorized to approve this operation.")
+    # An empty optional owner whitelist uses the current user's recorded approval.
+    # A populated whitelist remains authoritative in authorize/verify_approval.
     return missing
 
 
@@ -133,6 +133,22 @@ def hard_cap(client, impact):
     remaining = wire_minor(account.get("spend_cap")) - wire_minor(account.get("amount_spent"))
     require(0 < remaining <= policy()["maximum_monthly_minor"] - impact["spent_month_minor"],
             "Live account spend control does not cover the remaining monthly policy limit.")
+
+
+def launch_cap_change(run, client, impact):
+    """Prepare a bounded account-wide change; approval is required before any write."""
+    account = client.request(client.prefix, {"fields": "spend_cap,amount_spent"})
+    before, spent = wire_minor(account.get("spend_cap")), wire_minor(account.get("amount_spent"))
+    headroom = policy()["maximum_monthly_minor"] - impact["spent_month_minor"]
+    if 0 < before - spent <= headroom:
+        return None
+    criteria = run["records"]["strategy-development"]["data"]["criteria"]
+    days = criteria["window_days"] + criteria["lag_days"]
+    allowance = min(headroom, impact["daily_minor"] * days)
+    require(allowance > 0, "No authorized monthly headroom remains for launch.")
+    return {"scope": "account-wide", "from_minor": before, "to_minor": spent + allowance,
+            "amount_spent_minor": spent, "remaining_minor": allowance, "planning_days": days,
+            "reason": "Restore bounded delivery headroom under the saved monthly policy."}
 
 
 def matches(actual, expected):
@@ -237,8 +253,10 @@ def make_proposal(run, client, assets=None):
         for node in batch["objects"]:
             read_object(client, node, "PAUSED")
         impact = client.budget(add=0 if batch["addition"] else batch["daily_minor"])
-        hard_cap(client, impact)
+        cap_change = launch_cap_change(run, client, impact)
         action = {"batch": batch, "readiness": readiness}
+        if cap_change:
+            action["spend_control_change"] = cap_change
     elif operation == "pause":
         retirement = run["step"] == "retire"
         if run["step"] == "safety-pause":
@@ -316,7 +334,7 @@ def authorize(store, run_id, proposal_ref, *, operator, owner, reference, reject
         require("operators" not in rules or operator in rules["operators"], "Operator is outside the brand policy.")
         if p["operation"] in rules.get("owner_approval_actions", OWNER_ACTIONS) and not reject:
             string(owner, "owner identity for explicit approval")
-            require("owners" not in rules or owner in rules["owners"], "Owner is outside the brand policy.")
+            require(not rules.get("owners") or owner in rules["owners"], "Owner is outside the brand policy.")
         decision = {"proposal_id": proposal_ref, "operator": operator, "owner": owner,
                     "reference": reference, "at": stamp(), "approved": not reject}
         run["approval"] = {**decision, "signature": sign(decision, key=signing_key)}
@@ -348,7 +366,7 @@ def verify_approval(run, *, readback_only=False, signing_key=None):
     require("operators" not in rules or a["operator"] in rules["operators"], "Operator is outside the brand policy.")
     if p["operation"] in rules.get("owner_approval_actions", OWNER_ACTIONS):
         string(a["owner"], "owner approval")
-        require("owners" not in rules or a["owner"] in rules["owners"], "Owner is outside the brand policy.")
+        require(not rules.get("owners") or a["owner"] in rules["owners"], "Owner is outside the brand policy.")
     require(p["policy"] == fingerprint(rules), "Policy changed after approval.")
     require(p["request_revision"] == fingerprint(run["request"]), "Request evidence changed after approval.")
     records = {k: v for k, v in run["records"].items() if k != "scaling-approval"}
@@ -576,14 +594,47 @@ class Executor:
                 require(storefront(obj["destination"])["reachable"], "Ad destination is no longer reachable.")
         active_parent = any(n["kind"] == "campaign" and self.journal.get("activate:" + n["id"], {}).get("response")
                             for n in batch["objects"])
+        change = self.action.get("spend_control_change")
+        if change:
+            self.budget(add=0 if batch["addition"] or active_parent else batch["daily_minor"])
+            self.account_cap(change)
         self.budget(add=0 if batch["addition"] or active_parent else batch["daily_minor"], enforce_cap=True)
         for obj in sorted(batch["objects"], key=lambda n: {"ad": 0, "adset": 1, "campaign": 2}[n["kind"]]):
             oid = obj["id"]
             if obj["kind"] == "campaign" and "activate:" + oid not in self.journal:
                 self.budget(add=batch["daily_minor"], enforce_cap=True)
             self.update("activate:" + oid, oid, "configured_status", "PAUSED", "ACTIVE")
-        return {"campaign_id": batch["campaign_id"], "objects": [
+        receipt = {"campaign_id": batch["campaign_id"], "objects": [
             self.client.owned(n["id"], "configured_status,effective_status") for n in batch["objects"]]}
+        if change:
+            receipt["spend_control"] = self.journal["account-spend-cap"]["readback"]
+        return receipt
+
+    def account_cap(self, change):
+        key = "account-spend-cap"
+        def read():
+            return self.client.request(self.client.prefix, {"fields": "spend_cap,amount_spent"})
+        current = read()
+        spent = wire_minor(current.get("amount_spent"))
+        require(spent >= change["amount_spent_minor"], "Account spend counter changed; refresh the launch proposal.")
+        if key not in self.journal:
+            require(wire_minor(current.get("spend_cap")) == change["from_minor"],
+                    "Account spending limit changed; refresh the launch proposal.")
+            require(0 < change["to_minor"] - spent <= change["remaining_minor"],
+                    "The proposed account spending headroom is no longer valid.")
+        def send():
+            # Meta reads spend_cap in minor units but writes it in major currency units.
+            value = format(Decimal(change["to_minor"]) / policy()["minor_per_unit"], "f")
+            self.client.request(self.client.prefix, {"spend_cap": value}, post=True)
+            return {"id": self.client.prefix}
+        def verify(_):
+            observed = read()
+            require(wire_minor(observed.get("spend_cap")) == change["to_minor"],
+                    "Meta has not confirmed the approved account spending limit.")
+            return {"id": self.client.prefix, "spend_cap_minor": change["to_minor"],
+                    "amount_spent_minor": wire_minor(observed.get("amount_spent"))}
+        return self.step(key, {"kind": "account_spend_cap", "id": self.client.prefix,
+                              "before": change["from_minor"], "after": change["to_minor"]}, send, verify)
 
     def edit(self):
         op, data = self.proposal["operation"], self.action
@@ -614,7 +665,10 @@ def reconcile(store, run_id, operation, client, verified_id=None, *, absent=Fals
         c = item["context"]
         if absent:
             require(verified_id is None and reference, "Supply operator evidence that the request did not apply.")
-            if c["kind"] == "update":
+            if c["kind"] == "account_spend_cap":
+                value = wire_minor(client.request(client.prefix, {"fields": "spend_cap"}).get("spend_cap"))
+                require(value == c["before"], "Account spending limit is no longer at its approved starting value.")
+            elif c["kind"] == "update":
                 value = client.owned(c["id"], c["field"])[c["field"]]
                 if c["field"] == "daily_budget":
                     value = wire_minor(value)
@@ -627,7 +681,11 @@ def reconcile(store, run_id, operation, client, verified_id=None, *, absent=Fals
             store.save(run, "operator_confirmed_absence",
                        {"operation": operation, "reference": reference, "context": c})
             return run
-        if c["kind"] == "update":
+        if c["kind"] == "account_spend_cap":
+            require(wire_minor(client.request(client.prefix, {"fields": "spend_cap"}).get("spend_cap")) == c["after"],
+                    "Approved account spending limit is not confirmed in Meta.")
+            response = {"id": client.prefix}
+        elif c["kind"] == "update":
             value = client.owned(c["id"], c["field"])[c["field"]]
             if c["field"] == "daily_budget":
                 value = wire_minor(value)
