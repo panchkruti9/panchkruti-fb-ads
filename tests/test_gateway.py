@@ -46,6 +46,8 @@ class GatewayTest(unittest.TestCase):
         raise AssertionError(args)
 
     def test_encrypted_job_checkpoint_resume_and_exact_once_import(self):
+        self.run["status"]="execution_blocked"
+        self.store.save(self.run,"fixture_prior_write_blocked",{})
         job_id, manifest = gateway.pack_request(self.store, self.run, "health", {})
         folder = gateway.job_folder(self.store,job_id)
         self.assets[job_id+"-request.cms"]=(folder/"request.cms").read_bytes()
@@ -73,6 +75,7 @@ class GatewayTest(unittest.TestCase):
                 gateway.run_job(job_id,self.root/"runner2")
             resultpath=self.root/"result.cms";resultpath.write_bytes(self.assets[job_id+"-result.cms"])
             result=decrypt(resultpath,base/"client")
+            self.assertEqual(result["status"],"verified")
             signature=result.pop("signature")
             self.assertEqual(signature,gateway.digest(result,self.key))
             updated=gateway.import_result(self.store,self.run,result)

@@ -394,7 +394,7 @@ def run_job(job_id, location):
         except (Stop, OSError, KeyError, ValueError, TypeError) as error:
             reply.update(status="failed", error=str(error) if isinstance(error, Stop) else f"Meta job failed ({type(error).__name__}).")
         reply["run"] = store.get(run["id"])
-        if reply["run"]["status"] == "execution_blocked":
+        if request["operation"] == "execute" and reply["run"]["status"] == "execution_blocked":
             reply.update(status="failed", error="; ".join(reply["run"].get("blockers", [])))
         reply["events"] = events + store.events(run["id"])
         reply["signature"] = digest(reply, key)
