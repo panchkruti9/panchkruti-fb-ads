@@ -109,7 +109,14 @@ def render(store, run):
             lines.append(f"| {clean(entry['name'])} | {local_time(entry.get('launch_verified_at'), zone)} | {entry.get('first_delivery_on') or 'Not observed'} | {money(run, entry.get('spent_since_start_minor'))} | {money(run, month_spent)} |")
         lines.append("")
     cap = run.get("account_control") or run["request"].get("facts", {}).get("spend_control", {})
-    if cap.get("amount_spent") is not None:
+    billing = run.get("billing_observation") or {}
+    if billing.get("is_prepay_account"):
+        lines.extend(["## Meta prepaid funding — separate from AGI spending", "",
+                      "- Verified funding: " + clean(billing.get("available_balance_display", "Unknown")) + ".",
+                      "- Last checked: " + local_time(billing.get("observed_at"), zone) + ".",
+                      "- Meta rejected the attempted account-limit change because this is a prepaid account. Funding must use its supported prepaid payment flow.",
+                      "- Earlier account spending does not become this campaign's AGI spend.", ""])
+    elif cap.get("amount_spent") is not None:
         counter, limit = int(cap["amount_spent"]), int(cap.get("spend_cap", 0))
         lines.extend(["## Meta account control — separate from AGI spending", "",
                       f"- Account spending-counter reading: {money(run, counter)}.",
