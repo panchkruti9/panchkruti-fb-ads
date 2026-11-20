@@ -20,7 +20,7 @@ TAG = "meta-jobs"
 WORKFLOW = "meta-jobs.yml"
 MAX_BUNDLE = 256 * 1024 * 1024
 OPERATIONS = {"readiness", "account", "collect", "health", "review", "prepare", "activation",
-              "budget-validation", "execute", "reconcile", "verify", "launch-audit", "accounting"}
+              "budget-validation", "execute", "reconcile", "verify", "launch-audit", "accounting", "billing"}
 
 
 def directory(store):
@@ -98,7 +98,7 @@ def job_folder(store, job_id):
 def pack_request(store, run, operation, options):
     require(operation in OPERATIONS, "Unsupported Meta operation.")
     scope = {"run": run["id"], "revision": run["revision"], "operation": operation, "options": options}
-    if operation in {"readiness", "account", "collect", "review", "verify", "launch-audit"}:
+    if operation in {"readiness", "account", "collect", "review", "verify", "launch-audit", "billing"}:
         scope["read_window"] = int(time.time() // 300)
     job_id = fingerprint(scope)[:32]
     folder = job_folder(store, job_id)
@@ -243,6 +243,8 @@ def perform(store, run, operation, options):
             return ready
         if operation == "account":
             return {"details": client.details(), "report": client.account_report(), "budget": client.budget()}
+        if operation == "billing":
+            return client.request(client.prefix, {"fields": "account_id,currency,account_status,is_prepay_account,balance,spend_cap,amount_spent,funding_source_details,min_campaign_group_spend_cap"})
         if operation == "launch-audit":
             return launch_audit(run, client)
         if operation == "collect":
