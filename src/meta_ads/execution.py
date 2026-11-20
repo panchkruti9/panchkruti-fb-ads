@@ -129,7 +129,12 @@ def campaign_configuration(client, target):
 
 
 def hard_cap(client, impact):
-    account = client.request(client.prefix, {"fields": "spend_cap,amount_spent"})
+    account = client.request(client.prefix, {"fields": "spend_cap,amount_spent,is_prepay_account,funding_source_details"})
+    if account.get("is_prepay_account") is True:
+        # Meta enforces prepaid funding natively. Its account spend_cap is not an
+        # editable postpay limit; delivery/payment eligibility is read back from Meta.
+        require(impact["passed"], "Prepaid campaign funding exceeds the saved budget policy.")
+        return
     remaining = wire_minor(account.get("spend_cap")) - wire_minor(account.get("amount_spent"))
     require(0 < remaining <= policy()["maximum_monthly_minor"] - impact["spent_month_minor"],
             "Live account spend control does not cover the remaining monthly policy limit.")
@@ -137,7 +142,9 @@ def hard_cap(client, impact):
 
 def launch_cap_change(run, client, impact):
     """Prepare a bounded account-wide change; approval is required before any write."""
-    account = client.request(client.prefix, {"fields": "spend_cap,amount_spent"})
+    account = client.request(client.prefix, {"fields": "spend_cap,amount_spent,is_prepay_account"})
+    if account.get("is_prepay_account") is True:
+        return None
     before, spent = wire_minor(account.get("spend_cap")), wire_minor(account.get("amount_spent"))
     headroom = policy()["maximum_monthly_minor"] - impact["spent_month_minor"]
     if 0 < before - spent <= headroom:

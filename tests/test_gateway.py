@@ -105,6 +105,16 @@ class GatewayTest(unittest.TestCase):
         with self.assertRaisesRegex(Stop,"another scope"):
             gateway.import_result(self.store,updated,forged)
 
+    def test_prepaid_launch_uses_native_funding_without_invalid_account_limit_update(self):
+        from meta_ads.execution import hard_cap, launch_cap_change
+        class Client:
+            prefix="act_99"
+            def request(self,path,params):
+                return {"is_prepay_account":True,"spend_cap":"10000","amount_spent":"10001"}
+        self.assertIsNone(launch_cap_change({},Client(),{"passed":True}))
+        hard_cap(Client(),{"passed":True})
+        with self.assertRaises(Stop):hard_cap(Client(),{"passed":False})
+
     def test_bundle_cannot_escape_private_job_directory(self):
         buffer=io.BytesIO()
         with zipfile.ZipFile(buffer,"w") as archive:archive.writestr("../outside.json","bad")
