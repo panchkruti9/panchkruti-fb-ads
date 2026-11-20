@@ -29,6 +29,24 @@ def require(condition, message):
         raise Stop(message)
 
 
+def provider_error(error, path, token):
+    """Retain actionable Graph errors without exposing credentials or raw payloads."""
+    message = f"Meta returned HTTP {error.code} for {path}."
+    try:
+        details = json.loads(error.read(16000)).get("error", {})
+        codes = [str(details[k]) for k in ("code", "error_subcode") if type(details.get(k)) is int]
+        explanation = details.get("error_user_msg") or details.get("error_user_title") or details.get("message")
+        if codes:
+            message += " Graph code " + "/".join(codes) + "."
+        if isinstance(explanation, str):
+            explanation = explanation.replace(token, "[redacted]") if token else explanation
+            explanation = re.sub(r"access_token=[^\s&]+|EAA[A-Za-z0-9]{40,}", "[redacted]", explanation)
+            message += " " + " ".join(explanation.split())[:600]
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    return message
+
+
 def canonical(data):
     return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
 
@@ -179,7 +197,7 @@ class Meta:
                 break
             except HTTPError as error:
                 if attempt + 1 == attempts or error.code not in {429, 500, 502, 503, 504}:
-                    raise Stop(f"Meta returned HTTP {error.code} for {path}.") from None
+                    raise Stop(provider_error(error, path, self.token)) from None
             except OSError:
                 if attempt + 1 == attempts:
                     raise Stop(f"Meta request did not complete for {path}. Check write readback before resuming.") from None
