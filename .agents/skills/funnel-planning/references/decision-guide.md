@@ -19,3 +19,11 @@ Use verified recent purchasers when the campaign is acquiring new buyers and the
 Carry each concept's funnel stage into ad naming and Drive filing. Save new originals under the configured stage/product folder with revisions. Reuse approved files in place and record the exact file used.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Map Discovery to recognizing relevance, Consideration to understanding use/value/proof, and Purchase to resolving the last purchase objection. These are message jobs; a cold shopper may need an objection-led ad and a warm shopper may still need product explanation. Decide where the destination answers questions the ad cannot carry.
+
+Choose acquisition, retargeting, cross-sell or replenishment from product behavior and real audience availability. For acquisition consider recent purchaser exclusions; for repeat purchases consider reorder interval instead of excluding all buyers forever. Choose recency from visit-to-purchase behavior and pool size, with provisional assumptions labeled. File new media under the configured stage and product; do not create three campaigns merely to mirror three folders.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

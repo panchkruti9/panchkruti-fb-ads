@@ -3,70 +3,20 @@ name: campaign-build
 description: "Build the exact validated campaign, ad sets and ads as paused Meta objects and prove what was saved."
 ---
 
-## Skill Name
-
-Campaign Build
-
-## Purpose
+# Campaign Build
 
 Build the exact validated campaign, ad sets and ads as paused Meta objects and prove what was saved.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `campaign-build`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Creative Validation result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `receipt`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-Orchestrator worker, saved proposal, and operator-controlled Meta executor.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-1. Compile the typed plan into the exact orchestrator proposal. Verify ownership, naming, hierarchy, Purchase source, supported placement, approved asset revisions, identity, URL tags and budget headroom. Confirm the applicable operator authorization before any writes.
-2. For a new build create the paused campaign and ad sets and save IDs after readback. Resolve or upload approved media, handle video processing using its known ID, create the creative, and create the ad as PAUSED. For an addition use the verified existing ad set and create only the new creative and paused ad.
-3. After each write read back account, parent IDs, expected configuration and configured/effective status. Record provider IDs and pending or verified state. If a response is ambiguous, first resolve whether the object exists. Resume from confirmed IDs so retries do not create duplicates.
-
-## Rules
-
-Only the executor can complete the step; activation uses a separate route. Apply the shared operating rules.
-
-## Decision Logic
-
-A paused build is complete after verified readback and a recorded receipt. Activation goes through its own check and owner approval. [Meta Marketing API campaign and creative structure](https://developers.facebook.com/documentation/ads-commerce/marketing-api)
-
-## Output
-
-Orchestrator-generated record or a documented stop with its reason.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `receipt`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Verify the exact proposal and official readback; a local preview is not a receipt.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-All Meta writes use operator approval. Owner approval is explicit for activation and budget changes.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Record the paused build and prepare a separate activation run when requested. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

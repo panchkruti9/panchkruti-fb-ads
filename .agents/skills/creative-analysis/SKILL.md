@@ -3,70 +3,20 @@ name: creative-analysis
 description: "Determine which concepts earned a fair read, which signals changed, and what creative test would be informative next."
 ---
 
-## Skill Name
-
-Creative Analysis
-
-## Purpose
+# Creative Analysis
 
 Determine which concepts earned a fair read, which signals changed, and what creative test would be informative next.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `creative-analysis`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Business Performance Analysis result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `comparisons`, `fatigue`, `limitations`, `recommendations`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-Ad-level Insights, creative IDs and plan history.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-1. Join ad Insights to exact ad ID, concept, version, offer, stage, format and placement. Check spend and impression exposure per ad before comparing response and Purchase CPA. A concept with negligible delivery stays inconclusive.
-2. Compare like conditions and report both spend and outcomes. A strong click rate and weak purchases can reflect a curiosity hook, a mismatch with the page, or tracking. Cross-check the destination and business evidence before recommending a new promise. A drop in response with rising frequency across comparable windows supports checking fatigue. A change in placement or audience mix offers an alternative explanation.
-3. Propose a single actionable improvement or test with a specific creative element and what to hold comparable. If both angle and format differ, record the difference as a package and keep component effects unknown.
-
-## Rules
-
-Early noise is not fatigue. Apply the shared operating rules.
-
-## Decision Logic
-
-Offer a concrete next concept only when the evidence supports the shopper problem. Use more exposure or a designed test when the result is ambiguous. [Meta Blueprint creative experiments](https://www.facebookblueprint.com/student/path/219763-ab-test-conversion-brand-lift-course)
-
-## Output
-
-Explain differences between ad concepts and placements; save the findings as a step result with dated source references.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `comparisons`, `fatigue`, `limitations`, `recommendations`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Check that conclusions follow from the evidence and list limitations before submission.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-Read/analysis only; no approval or Meta mutation at this step.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Audience Analysis. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

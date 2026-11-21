@@ -3,70 +3,20 @@ name: ad-library-research
 description: "Identify visible creative approaches that can inspire a distinct, substantiated brand test."
 ---
 
-## Skill Name
-
-Meta Ad Library Research
-
-## Purpose
+# Meta Ad Library Research
 
 Identify visible creative approaches that can inspire a distinct, substantiated brand test.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `ad-library-research`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Competitor Research result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `queries`, `ads`, `patterns`, `coverage`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-Public Meta Ad Library, web or authorized browser.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-1. Use Meta Ad Library with intended country and the relevant category. Start with verified advertiser Pages, then search product and category terms. Record date, country, search terms, Page, library ID or URL, and which sources were accessible.
-2. For each ad, record the opening scene or hook, product reveal, proof type, offer, format, CTA and destination when visible. Group near-identical variants as one concept so duplicated versions do not inflate the pattern. Infer the shopper question and stage as hypotheses.
-3. Build a short list of adaptable mechanisms, such as product demonstration or routine explanation. Tie each to a verified product fact and a customer question. Carry no competitor wording or unsupported result promise into Create.
-
-## Rules
-
-When the library is inaccessible, persist the failed query and scope as limited evidence. Apply the shared operating rules.
-
-## Decision Logic
-
-An active or long-running ad is evidence of visible use. Its spend, targeting and sales remain unknown unless directly disclosed by a reliable source. If the API and UI show different coverage, report their scopes and limits separately. [Meta Ad Library](https://www.facebook.com/ads/library/) · [Meta Ads Archive reference](https://developers.facebook.com/docs/graph-api/reference/ads_archive/)
-
-## Output
-
-Find observable ad concepts and message patterns; save the findings as a step result with dated source references.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `queries`, `ads`, `patterns`, `coverage`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Check that conclusions follow from the evidence and list limitations before submission.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-Read/analysis only; no approval or Meta mutation at this step.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Account Research. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

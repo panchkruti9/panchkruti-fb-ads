@@ -3,70 +3,20 @@ name: budget-validation
 description: "Verify that the exact proposed increase fits total daily and monthly account exposure."
 ---
 
-## Skill Name
-
-Budget Validation
-
-## Purpose
+# Budget Validation
 
 Verify that the exact proposed increase fits total daily and monthly account exposure.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `budget-validation`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Scaling Analysis result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `account_id`, `projected_daily_minor`, `projected_monthly_minor`, `passed`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-meta-ads budget ACCOUNT; Meta account funding and Insights.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-1. Use the worker’s live funding enumeration and month-to-date spend in the account time zone. Count the active campaign budget once when it funds the children, and count ad set budgets when they own funding. Include all account exposure, including non-managed campaigns as aggregates.
-2. Replace the target’s current budget with the proposed amount exactly once. Compare projected daily exposure and month-to-date spend plus the planned reservation for remaining days with the effective brand policy. Confirm assumptions for any lifetime or scheduled amounts. Distinguish a forecast from the configured hard spend control.
-3. Record before and after totals, target, time zone, snapshot time and policy limit. A changed budget or spending scope requires fresh evidence before the proposal proceeds.
-
-## Rules
-
-Policy limits cannot be waived by an ordinary proposal. Apply the shared operating rules.
-
-## Decision Logic
-
-Block when funding is mixed, exposure cannot be bounded, data is incomplete or a limit would be exceeded. The checker evaluates the existing policy ceiling. A change to that policy follows the owner authorization process.
-
-## Output
-
-Check account-wide limits using live data; save the findings as a step result with dated source references.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `account_id`, `projected_daily_minor`, `projected_monthly_minor`, `passed`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Check that conclusions follow from the evidence and list limitations before submission.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-Read/analysis only; no approval or Meta mutation at this step.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Scaling Proposal. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

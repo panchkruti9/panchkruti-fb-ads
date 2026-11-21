@@ -19,3 +19,11 @@ Inspect and enroll a matching managed campaign before deciding to keep, improve 
 Explain what is reusable, what has already failed, what is untested and the actual funding headroom. Record any data gap without inventing a performance history.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Reconcile assigned agi- objects with the live account and saved receipts before creating anything. Compare configured and effective status, funding ownership, Purchase source, audience settings, placements, creative versions and first observed delivery. Inspect an existing managed campaign and choose whether to continue, improve or replace it. Other campaigns remain outside mutation scope but count toward account exposure.
+
+Historical account totals are not spend since AGI management began. Missing history stays unknown. Identify usable data periods and material changes before recommending tests. If a write timed out, reconcile the exact request first; a second build is not an account-research remedy.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

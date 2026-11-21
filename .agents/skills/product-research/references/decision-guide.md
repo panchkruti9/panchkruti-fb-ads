@@ -19,3 +19,11 @@ Research and paused preparation can continue with explicitly unknown margin or s
 Give Strategy Development the offer, differentiated facts, price friction, purchase route and unknowns. A list of technical IDs without an explanation of why someone might buy is incomplete.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Compare the actual delivered offer: product/variant, quantity, selling price, mandatory shipping, delivery eligibility, availability and return terms. Distinguish tracked zero stock from inventory tracking disabled. Read the live page and connected product before asking for facts. Use packaging/page wording for ordinary benefits; stronger quantified claims need their actual source. A competitor claim cannot substantiate this product.
+
+If price or availability differs between Shopify and the page, resolve the purchase experience before building copy around either value. If costs are missing, mark contribution unknown and collect available cost fields; a useful bounded purchase test can still proceed within saved authority. Hand off exact offer facts, sources and uncertainties to Strategy Development.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

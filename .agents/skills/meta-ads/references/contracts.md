@@ -51,10 +51,10 @@ data.plan =
     daily_minor: positive integer for ad set funding, otherwise 0
     country_codes: list from the request
     placements: list from the placement names below
-    existing_adset_id: null for new build, exact Meta string ID for additions
+    existing_adset_id: null for new build, exact Meta string ID for existing parents; null for a new ad set under existing campaign funding
     ads[]:
       name: "<campaign-key>-<stage>-<concept>-<format>-v01"
-      format: static | video | story
+      format: static | video | story | carousel | catalogue
       stage: discovery | consideration | purchase
       asset_id: exact Drive file ID
       poster_asset_id: exact approved poster Drive ID for video, otherwise null
@@ -78,9 +78,9 @@ The connected agent uses the Drive filing map for new creative. TOFU uses Discov
 
 ### Campaign decisions
 
-The lifecycle has four recorded outcomes, `COMPLETE`, `STOP`, `RECREATE`, and `SCALE`. Job status records where it is, such as ready, awaiting approval, monitoring, or blocked. A paused build can be complete while activation is waiting. Decisions inside Optimize are HOLD, FIX, TEST, REFRESH, PAUSE, RECREATE, and SCALE.
+The lifecycle has four recorded outcomes, `COMPLETE`, `STOP`, `RECREATE`, and `SCALE`. Job status records where it is, such as ready, awaiting approval, monitoring, or blocked. A paused build can be complete while activation is waiting. Decisions inside Optimize are HOLD, FIX, TEST, REFRESH, PAUSE, RECREATE, SCALE, ALLOCATE, AUDIENCE and RESUME.
 
-Business windows distinguish Meta delivery and attributed actions from Shopify exact last-visit Meta UTM matches. Growth requires two separate, mature windows, each within the verified CPA ceiling and each showing positive measured product contribution after ad spend. Add verified `facts.economics` with the exact `product_id`, `variant_id` where applicable, `campaign`, `success_metric` and `source`. Each `windows` entry has `start`, `end`, and measured `product_cost_minor`, `shipping_fulfillment_minor` and `fees_minor` for that exact cohort. Use Shopify receipts less refunds and retained tax for fully attributable carts. For mixed carts, provide `verified_product_net_receipts_minor` for the whole cohort from an auditable allocation. Include losses from refunded orders and avoid subtracting refunds twice. Missing receipts or costs block scaling. This measures matched-order contribution, so it does not establish incrementality.
+Business windows distinguish Meta delivery and attributed actions from Shopify exact last-visit Meta UTM matches. Growth uses the strategy's recorded repeatability design: two independent mature windows by default, or scale_windows=1 with a dated repeatability_reference and twice the usual qualified-order minimum. All selected windows must meet the verified CPA ceiling and show positive measured contribution after ad spend. Add verified `facts.economics` with the exact `product_id`, `variant_id` where applicable, `campaign`, `success_metric` and `source`. Each `windows` entry has `start`, `end`, and measured `product_cost_minor`, `shipping_fulfillment_minor` and `fees_minor` for that exact cohort. Use Shopify receipts less refunds and retained tax for fully attributable carts. For mixed carts, provide `verified_product_net_receipts_minor` for the whole cohort from an auditable allocation. Include losses from refunded orders and avoid subtracting refunds twice. Missing receipts or costs block scaling. This measures matched-order contribution, so it does not establish incrementality.
 
 An early operational pause can use the worker's verified allocation or month-to-date spending breach, or a verified `facts.operational_issue` on the exact target. That record includes `kind`, `target_id`, `verified`, `reference`, and `observed_at`. The existing approval process still applies. Health problems while a live run is waiting are recorded as `live_campaign_attention` and shown in run status.
 
@@ -105,3 +105,47 @@ Every committed step refreshes `logs/activity.md` and `logs/<brand>/<campaign>.m
 A paused build or approved plan does not start AGI spending. Before activation, capture exact campaign Insights for the account-local launch day and month as a baseline, persist it before mutation, and preserve it across ambiguous-write recovery. On verified activation, record `launch_verified_at`. Record the first observed delivery separately as a date when only daily Insights are available. Use absolute campaign totals less the saved pre-start baseline, not account `amount_spent`, to measure AGI usage. Repeated snapshots replace observations instead of adding them twice. A replacement campaign retains the preceding campaign's ledger; a new month retains total spend while starting a new monthly counter. Never turn an unknown legacy baseline into zero.
 
 The readable log shows start, first delivery, daily budget, spend since start, month spend, observation date, next review and responsible party. Meta's account spending counter, account limit and account-wide funding checks remain separate. Earlier account spending cannot be charged to a new AGI run. A temporary reporting read failure is an agent-owned reconciliation task; preserve unknown/stale evidence and existing authorized execution rather than inventing a number or asking the owner to calculate it.
+
+### Standing authority and completed creative approval
+
+Record the actual user instruction with `meta-ads management-authority RUN_ID --daily-minor N --monthly-minor N --reference "ACTUAL USER INSTRUCTION"`. This changes private run authority, not Meta budgets; policy maxima remain separate. Existing proposals must be resolved first. Under standing authority routine operator signing is automatic; legacy runs retain exact owner actions. Use the current user's actual approval for total increases and account-wide funding-control changes.
+
+Mark selected newly agent-designed media `origin: agent`. After showing the finished preview and receiving approval, record each original with `meta-ads approve-creative RUN_ID --file-id FILE --revision REV --md5 HASH --owner OWNER --reference "ACTUAL PREVIEW APPROVAL"`. The signed receipt is checked against bytes/revision at proposal and build. Existing brand artwork can use `origin: brand` (legacy default). Changed generated media needs a fresh decision.
+
+### Strategy and adaptive decisions
+
+Version-2 management strategies supply the decision_contract documented in [the decision method](decision-method.md). `criteria` keeps window_days, lag_days, minimum_matched_orders, maximum_cpa_minor and recheck_hours; optional fields are learning_spend_minor, scale_windows and repeatability_reference. A learning allowance fits the current approved allocation and is never an extra authorization or fabricated CPA. Missing costs permit bounded learning, not unsupported profit claims.
+
+`TEST` with `test_kind: planned-challenger` requires `exposure_plan: {question, comparison}`. Ordinary performance verdicts still require usable evidence. `ALLOCATE` requires changes[] with target_id/from_daily_minor/to_daily_minor for distinct active funding owners in enrolled campaigns for the same client/account, using campaign or ad-set funding at its actual level; total cannot increase and decreases execute first. `AUDIENCE` requires audience: {name, event, retention_days, product_url}; event is PageView/ViewContent/AddToCart/InitiateCheckout/Purchase, name stays in the assigned product namespace, retention is 1..180 days and URL matches the assigned product. Creation does not establish delivery eligibility.
+
+A dated strategy review alone does not restart research. To reconsider it explicitly, submit a decision with strategy_reconsideration: {required: true, reason: "changed evidence", reference: "source"}. Keep unchanged research when possible and save the replacement rationale.
+
+### Additional build recipes
+
+For a Feed carousel add cards[] to the ad, each with asset_id/headline/description/destination. Use 2..10 approved image cards, same assigned destination and stage, first card as asset_id, null poster, exact saved card order, passing QA for the entire carousel and a matching carousel name/format. Include every card original in Asset Selection.
+
+For a verified existing catalogue add plan.catalogue: {catalogue_id, product_set_id, retailer_ids}. All ads in that build use format catalogue. Save facts.catalogue with these same values, exact assigned product_id/variant_id and source. The provider verifies product-set membership, item URLs/currency/availability and assigned Purchase source before proposal, build and activation. This recipe does not provision a catalogue, change the feed or allow unassigned products. A selected approved original remains the visual-review reference; final rendered catalogue previews require inspection.
+
+`next` returns capabilities, evidence_assessment and update with reason/due_condition/data_freshness. An approved operation returns dispatch; an uncertain pending write returns reconcile with pending_operations. Structured status and readable logs come from the same committed records.
+
+### Version-2 knowledge handoffs
+
+After a new strategy is saved with contract_version 2, Campaign Strategy, Creative Concept and Creative Validation include its exact strategy_id. Each creative concept has name (the exact final ad name), message, hypothesis, proof, format and stage; portfolio_rationale explains the number of concepts and how useful exposure is expected. Creative Validation maps each ad with concept_name, exact matching ad name/format/stage and approved_ad. This prevents a stale or unrelated brief from silently becoming the executed strategy; it does not mechanically certify creative quality.
+
+New Asset Selection submissions on version-2 management runs identify origin: brand or agent for every selected original. Historical brand-approved selections remain compatible. Signed creative approvals can be reused across runs for the same brand/account and unchanged bytes/revision; changed designs and changed owner whitelists are rechecked.
+
+window_days is the target lookback. Before that much post-delivery history exists, collection uses available complete clean dates after the relevant change and first observed delivery, with an equally long previous comparison. Exposure and reporting lag still determine usability. A new creative portfolio starts a fresh aggregate comparison while object_changes preserves the identity/history of unaffected controls. Saved dates do not imply a statistically conclusive randomized result.
+
+`meta-ads capabilities RUN_ID` performs optional read-only audience/catalogue discovery through the existing gateway. Inventory access does not prove write permissions, audience delivery or catalogue eligibility. Catalogue IDs, product mappings and product-set filters come from connected discovery; the client is not asked to fill technical ID forms. Limited optional discovery never blocks ordinary Sales preparation.
+
+Replacement builds remain paused while the predecessor continues. Their proposed funding models the replacement rather than simultaneous funding. At release the executor checkpoints and verifies the predecessor pause before activating the replacement. Partial handovers remain in the same journal; do not reactivate the old campaign while the replacement status is uncertain.
+
+`meta-ads guard RUN_ID` uses only Meta and the saved standing monthly allocation. At a verified account-month ceiling it prepares, signs, journals and reads back a pause of the enrolled campaign. It never increases funding. It requires a running host/job, and its reporting/polling delay is not a guaranteed hard cap. Existing unresolved proposals must be reconciled before a separate guard operation.
+
+### Pause, continue management and resume
+
+A performance or budget pause under standing authority keeps management scheduled; it does not silently hand the lifecycle back to the user. The monthly guard schedules the next allocation review at the start of the next account-local month. The agent reviews current conditions before choosing whether to resume; a calendar wake itself is not an activation.
+
+Use optimization decision RESUME for a paused campaign/ad set/ad in the enrolled hierarchy. The recipe verifies Purchase-source/product/variant evidence, recorded operational issues, destination reachability, current creative destinations, parent status and fresh account exposure. It pins current configuration and uses the normal signed journal/readback route. Resumption preserves the original AGI launch/spend baseline and begins a new comparison window. `meta-ads resume` is the separate command for reopening blocked lifecycle state; it does not activate Meta objects.
+
+If the user explicitly stops management, set stop_management: true on the PAUSE decision. That terminal stop is not automatically reversed. Ordinary reductions and reallocations can use ALLOCATE with one or more funding owners; no aggregate increase is allowed. Fresh execution checks enforce standing monthly authority as well as daily allocation and broader policy limits.

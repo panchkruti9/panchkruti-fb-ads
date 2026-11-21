@@ -19,3 +19,11 @@ Read delivery status independently from operation warnings. Deliverable stale or
 Do not invent a custom audience or silently claim a suggestion is a hard restriction. State the supported alternative, continue useful preparation and isolate any genuinely necessary capability work. Avoid product-condition names that imply sensitive health targeting.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Start with serviceable geography and the buying hypothesis. Compare broad prospecting, a usable relevant warm pool and an eligible lookalike seed. Explain why an audience test could change the purchase outcome, what remains constant and which alternatives cannot be funded usefully yet. A condition-related persona is not permission for sensitive targeting.
+
+Verify exact includes/excludes and whether they are strict controls or expansion suggestions. If a website audience is missing, an AUDIENCE recipe can create a product-scoped PageView/ViewContent/AddToCart/InitiateCheckout/Purchase audience; wait for actual delivery eligibility before using it. Use ALLOCATE for justified existing ad-set funding transfers. Missing/inactive warm pools leave broad delivery available; never invent an audience ID.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

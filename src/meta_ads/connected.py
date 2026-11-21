@@ -267,9 +267,23 @@ def next_step(store, run, *, client_factory=client_for):
     step = run["step"]
     response = {"run_id": run["id"], "step": step, "status": run["status"], "revision": run["revision"],
                 "next_review_at": run["next_review_at"]}
+    from .report import describe
+    from .assessment import assess
+    from .recipes import capabilities
+    response.update(update=describe(run), evidence_assessment=assess(run), capabilities=capabilities(run))
+    response["agent_followups"] = run.get("upgrade_assessment", [])
+    if run["status"] == "blocked" and run.get("creative_approval_request"):
+        return {**response, "action": "creative-approval", "previews": run["creative_approval_request"]}
     if run["status"] == "awaiting_approval" and (setup := approval_setup(run)):
         return {**response, "action": "operator-setup", "missing": setup}
     operator_build = (run.get("proposal") or {}).get("operation") == "build" and run["status"] == "approved"
+    if run["status"] == "approved" and not operator_build:
+        return {**response, "action": "dispatch"}
+    if run["status"] == "execution_blocked":
+        proposal = run.get("proposal") or {}
+        journal = run.get("write_journal", {}).get(proposal.get("id"), {})
+        pending = [key for key, item in journal.items() if item.get("state") == "pending"]
+        return {**response, "action": "reconcile" if pending else "dispatch", "pending_operations": pending}
     if run["status"] != "ready" and not operator_build:
         return response
     with configured(run["request"]["brand"]):

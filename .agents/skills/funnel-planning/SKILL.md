@@ -3,72 +3,20 @@ name: funnel-planning
 description: "Decide which shopper questions the campaign needs to answer before purchase and where each answer should appear."
 ---
 
-## Skill Name
-
-Funnel Planning
-
-## Purpose
+# Funnel Planning
 
 Decide which shopper questions the campaign needs to answer before purchase and where each answer should appear.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `funnel-planning`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Campaign Strategy result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `stages`, `journey`, `allocation`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-Current campaign strategy and storefront evidence.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-Use [first-campaign decisions](../strategy-development/references/first-campaign-decisions.md) to select TOFU, MOFU and BOFU messages from the buyer's situation and objection. Preserve a supported Sales setup while research continues.
-
-1. Map Discovery, Consideration and Purchase to specific shopper questions from the strategy and research. Discovery should make the product and use case recognizable. Consideration should resolve a meaningful objection with proof. Purchase should make price, contents, terms or next action clear where they affect the decision.
-2. Give each selected message a proof point, placement intent, destination, CTA and diagnostic signal. Keep the business purchase goal from Strategy Development. A consideration message can still be an ad in a Sales campaign.
-3. Allocate distinct stages to separate ad sets only when separate delivery is useful, targetable and affordable. For a small test, use the message most directly tied to the current hypothesis and defer the others explicitly. Plan remarketing only with verified usable audience and account controls.
-
-## Rules
-
-Offer and urgency must be current and verifiable. Apply the shared operating rules.
-
-## Decision Logic
-
-If shoppers do not understand the bundle, prioritize a consideration message that shows the verified routine. Use a purchase-stage price message when value or terms are the stronger supported barrier. Output a message map the Creative Concept and Audience Planning skills can use.
-
-## Output
-
-Map Discovery, Consideration and Purchase to useful actions; save the findings as a step result with dated source references.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `stages`, `journey`, `allocation`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Check that conclusions follow from the evidence and list limitations before submission.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-Read/analysis only; no approval or Meta mutation at this step.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Audience Planning. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

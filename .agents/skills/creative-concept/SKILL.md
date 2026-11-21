@@ -3,70 +3,20 @@ name: creative-concept
 description: "Turn one buyer question and one verified proof point into a production brief that can produce a distinct ad."
 ---
 
-## Skill Name
-
-Creative Concept
-
-## Purpose
+# Creative Concept
 
 Turn one buyer question and one verified proof point into a production brief that can produce a distinct ad.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `creative-concept`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Audience Planning result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `concepts`, `test_variables`, `production_brief`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-Campaign strategy, funnel and audience artifacts.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-1. Choose the shopper question from Funnel Planning and Customer Research. Write the one thing the ad must communicate and how the viewer can see it. For a contents concept, show both authentic packs. For a routine concept, show the approved sequence. For value, show what is included and verified offer terms.
-2. For new AI-generated artwork, use verified packshots as product references and preserve the brand and packaging. Specify the exact short headline, optional supporting line, placement and CTA. Use the product name, bundle contents or a qualified benefit from the product page. If text rendering is unreliable, generate the layout with space for copy and add the approved wording separately. For existing approved artwork, choose the version that fits the concept and write the accompanying ad copy.
-3. Choose variants that test meaningfully different messages or proof mechanisms. When testing the message, hold offer, destination and intended audience conditions comparable. A font or border change alone leaves the underlying concept the same. If approved assets cannot prove the idea, describe the missing shot or rework the concept to supported evidence.
-
-## Rules
-
-Start creative work after strategy; do not present previews as saved ads. Apply the shared operating rules.
-
-## Decision Logic
-
-Record the shopper question, message, evidence and visual plan under the exact ad name. Use the failed requirement when reworking a brief so a repeated attempt addresses the actual gap. [Meta Blueprint creative diversification](https://www.facebookblueprint.com/student/activity/707402)
-
-## Output
-
-Produce a brief for formats the brand can support; save the findings as a step result with dated source references.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `concepts`, `test_variables`, `production_brief`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Check that conclusions follow from the evidence and list limitations before submission.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-Read/analysis only; no approval or Meta mutation at this step.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Ad Copywriting. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

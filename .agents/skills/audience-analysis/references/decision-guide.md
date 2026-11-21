@@ -19,3 +19,11 @@ Check recency, relevance, size/availability, purchaser exclusions and exposure. 
 Recommend a bounded audience test or maintain current delivery. Explain what the current evidence cannot distinguish and preserve the exact include/exclude and expansion readback.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Compare intended controls to actual saved settings and returned breakdowns. Distinguish targeting suggestions from restrictions and avoid interpreting missing conversion breakdowns as zero sales. Segment rankings with tiny or unequal exposure are hypotheses, not an automatic exclusion list.
+
+For retargeting inspect pool relevance/recency, delivery eligibility, overlap, purchase exclusions, frequency and marginal contribution. A small pool may not support more spend; it may also mainly reach shoppers who would return without advertising. Compare broad and warm performance in context, and prefer controlled validation when feasible. Recommend the smallest useful audience change with a clear purchase question.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

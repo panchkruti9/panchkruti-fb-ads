@@ -81,7 +81,8 @@ def capture(client, job_id):
                        and Decimal(row.get("spend", "0")) > 0 for row in rows["campaign"]):
                 alerts.append("No spend was reported for yesterday on this active campaign.")
         campaigns[target["id"]] = {"name": target["name"], "configuration": configuration,
-                                   "effective_status": target["effective_status"], "daily": rows, "alerts": alerts}
+                                   "effective_status": target["effective_status"], "configured_status": target["configured_status"],
+                                   "daily": rows, "alerts": alerts}
         if target["configured_status"] == "PAUSED":
             try:
                 campaigns[target["id"]]["draft"] = draft_readback(client, target)
@@ -226,6 +227,8 @@ def record(store, run):
             unseen.append({"job_id": entry["job_id"], "at": entry["observed_at"], "status": campaign["effective_status"],
                            "dates": [entry["first_day"], entry["last_complete_day"]],
                            "yesterday": recent, "alerts": campaign["alerts"]})
+            run["delivery_observation"] = {"id": target["id"], "at": entry["observed_at"],
+                "configured_status": campaign.get("configured_status"), "effective_status": campaign["effective_status"]}
     if unseen or ledger_changed:
         if unseen:
             run["meta_catchup_at"] = unseen[-1]["at"]

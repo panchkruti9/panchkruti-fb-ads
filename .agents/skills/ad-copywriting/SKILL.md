@@ -3,70 +3,20 @@ name: ad-copywriting
 description: "Write Meta ad text that communicates the intended message, supports it with approved evidence, and leads to the right action."
 ---
 
-## Skill Name
-
-Ad Copywriting
-
-## Purpose
+# Ad Copywriting
 
 Write Meta ad text that communicates the intended message, supports it with approved evidence, and leads to the right action.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `ad-copywriting`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Creative Concept result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `variants`, `claim_evidence`, `ctas`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-Product facts, concept, and shared skincare rules.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-1. Read the concept, verified product claims, placement and destination. Put the value or product identity early enough to survive truncation. Use one verified reason to click. Write a headline understandable on its own and a description only if it adds useful information.
-2. Check the implied claim of every sentence. Ingredient presence can support an ingredient statement. It cannot support a result, timeframe, comparative claim or treatment promise by itself. Use neutral product language and follow brand and Meta rules about personal attributes. Match current price, bundle terms and CTA to the page.
-3. Return exact `variants` by ad name with `primary_text`, `headline`, `description` and `cta`. In `claim_evidence`, cite the product page or packaging once for ordinary product wording it supports. Identify separate sources for any stronger claim or offer.
-
-## Rules
-
-Remove claims that cannot be substantiated; do not edit Shopify offers. Apply the shared operating rules.
-
-## Decision Logic
-
-If the evidence cannot support the core premise, send the premise back to Creative Concept. If only a sentence is too strong, reduce it to what the evidence supports. Use the supported CTA enum for the intended next action. [Meta Advertising Standards](https://transparency.meta.com/policies/ad-standards/)
-
-## Output
-
-Write evidence-backed, placement-ready ad text; save the findings as a step result with dated source references.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `variants`, `claim_evidence`, `ctas`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Check that conclusions follow from the evidence and list limitations before submission.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-Read/analysis only; no approval or Meta mutation at this step.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Creative Asset Selection. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

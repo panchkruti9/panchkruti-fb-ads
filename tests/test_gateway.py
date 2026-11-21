@@ -135,11 +135,11 @@ class GatewayTest(unittest.TestCase):
             client.audience.update(operation_status={"code":status},delivery_status={"code":delivery})
             with self.assertRaises(Stop):verify_audiences(client,adsets)
 
-    def test_zero_order_complete_window_can_be_reviewed_without_invented_cpa(self):
+    def test_zero_orders_alone_are_not_sufficient_exposure(self):
         run={"records":{"strategy-development":{"data":{"criteria":{"minimum_matched_orders":5,
                   "maximum_cpa_minor":None}}}},"request":{"facts":{"tracking":{"purchase_verified":True}}}}
         with patch("meta_ads.workflow.measured_window",return_value={"orders":0,"spend":1000}):
-            self.assertTrue(performance_mature(run))
+            self.assertFalse(performance_mature(run))
         with patch("meta_ads.workflow.measured_window",return_value=None):
             self.assertFalse(performance_mature(run))
 

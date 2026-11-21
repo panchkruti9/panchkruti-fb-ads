@@ -25,9 +25,13 @@ def read(path):
 
 def show(run):
     from .ledger import summary as spending
+    from .assessment import assess, business_summary
+    from .recipes import capabilities
     proposal = run.get("proposal")
     setup = approval_setup(run) if run["status"] == "awaiting_approval" else []
-    return {"update": describe(run), "agi_spending": spending(run)} | {key: run.get(key) for key in ("id", "revision", "group", "step", "status", "outcome", "next_review_at",
+    return {"update": describe(run), "agi_spending": spending(run), "evidence_assessment": assess(run),
+            "business_results": business_summary(run), "capabilities": capabilities(run),
+            "agent_followups": run.get("upgrade_assessment", [])} | {key: run.get(key) for key in ("id", "revision", "group", "step", "status", "outcome", "next_review_at",
                                           "strategy_version", "blockers", "last_receipt", "waiting_health")} | {
         "product_id": run["request"]["product_id"],
         "brand_id": (run["request"].get("brand") or {}).get("brand_id"),
@@ -50,6 +54,15 @@ def command():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", help="Private SQLite path. Set META_ADS_STATE_DB for scheduled runs.")
     sub = parser.add_subparsers(dest="action", required=True)
+    p = sub.add_parser("management-authority", help="Record the user's standing allocation; never infer this from research.")
+    p.add_argument("run_id")
+    p.add_argument("--daily-minor", type=int, required=True)
+    p.add_argument("--monthly-minor", type=int, required=True)
+    p.add_argument("--reference", required=True)
+    p = sub.add_parser("approve-creative", help="Record the user's approval of a completed generated visual.")
+    p.add_argument("run_id")
+    for field in ("file-id", "revision", "md5", "owner", "reference"):
+        p.add_argument("--" + field, required=True)
     p = sub.add_parser("gateway-setup", help="Configure encrypted Meta jobs with the existing GitHub connection.")
     p.add_argument("--repo", required=True)
     p = sub.add_parser("gateway", help="Run or resume a protected Meta operation on GitHub.")
@@ -73,7 +86,7 @@ def command():
             mode = p.add_mutually_exclusive_group()
             mode.add_argument("--now", action="store_true", help="Run due skills with the host's direct API connections.")
             mode.add_argument("--connected", action="store_true", help="Continue with the calling agent's plugins.")
-    for name in ("status", "events", "proposal", "resume", "review", "execute", "next", "media-preview", "operator-check", "log"):
+    for name in ("status", "events", "proposal", "resume", "review", "execute", "next", "media-preview", "operator-check", "log", "guard", "capabilities"):
         p = sub.add_parser(name)
         p.add_argument("run_id")
         if name == "resume":
@@ -134,8 +147,9 @@ def initialize(brand_name):
     for field in ("currency", "minor_per_unit", "minimum_daily_minor", "maximum_daily_minor",
                   "maximum_monthly_minor", "creative_root"):
         rules[field] = None
-    for field in ("operators", "owners", "formats", "placements"):
+    for field in ("owners", "formats", "placements"):
         rules[field] = []
+    rules["operators"] = ["ads-agent"]
     product = {"product_id": None, "product_name": None, "landing_page": None,
                "countries": [], "objective": "website_sales", "brief": None}
     directory.mkdir(parents=True, exist_ok=True)
@@ -267,6 +281,25 @@ def main():
             run = store.get(args.run_id)
             if name == "status":
                 emit(show(run))
+            elif name == "guard":
+                from .guard import check
+                emit(show(check(store, run)))
+            elif name == "capabilities":
+                from .gateway import enabled, invoke
+                from .recipes import inspect_capabilities
+                if enabled(store):
+                    emit(invoke(store, run, "capabilities")[1])
+                else:
+                    with configured(run["request"].get("brand")):
+                        emit(inspect_capabilities(store, run, Meta(run["request"]["account_id"])))
+            elif name == "management-authority":
+                from .authority import grant
+                emit(show(grant(store, run["id"], daily_minor=args.daily_minor,
+                                monthly_minor=args.monthly_minor, reference=args.reference)))
+            elif name == "approve-creative":
+                from .execution import approve_creative
+                emit(show(approve_creative(store, run["id"], file_id=args.file_id, revision=args.revision,
+                                          md5=args.md5, owner=args.owner, reference=args.reference)))
             elif name == "gateway":
                 from .gateway import invoke
                 updated, data = invoke(store, run, args.operation)

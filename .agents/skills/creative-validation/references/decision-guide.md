@@ -19,3 +19,11 @@ Map each ad to its exact selected asset revision, funnel stage, ad set, permitte
 Release usable ads to paused build and list limitations. Isolate an unusable creative so another valid concept can proceed. Meta preview inspection belongs before activation; a successful image upload does not establish visual quality.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Review the complete ad: original media, embedded wording, caption, CTA, price/terms, placement rendering and destination. Check whether it tests the strategy's actual message; return a changed creative angle for strategy reconciliation. Validate every carousel card, its order, destination and asset revision. Catalogue ads additionally need a verified assigned product set, retailer mapping and Purchase-source linkage.
+
+Isolate a failing concept so a valid one can proceed. Inspect Meta previews for the exact paused objects before activation; generated iframe markup alone is not a visual inspection. Mark generated-media origin and verify the user's completed-preview approval. For existing approved artwork assess material issues, not speculative blanket proof requirements. Save exact approved_ad per ad so execution can compare actual content.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

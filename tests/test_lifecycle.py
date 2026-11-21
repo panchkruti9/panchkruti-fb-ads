@@ -223,11 +223,14 @@ class LifecycleTest(unittest.TestCase):
         item = json.loads((root / "product-request.json").read_text(encoding="utf-8"))
         configured = request(item, brand)
         self.assertEqual(configured["account_id"], brand["account_id"])
-        self.assertEqual(configured["review_policy"]["maximum_cpa_minor"], item["target_cost_minor"])
+        self.assertNotIn("maximum_cpa_minor", configured["review_policy"])
+        self.assertEqual(request({**item, "target_cost_minor": 2000}, brand)["review_policy"]["maximum_cpa_minor"], 2000)
         with self.assertRaises(Stop):
             request({**item, "landing_page": LINK}, brand)
         with self.assertRaises(Stop):
-            request({**item, "formats": ["carousel"]}, brand)
+            narrower = deepcopy(brand)
+            narrower["policy"]["formats"] = ["static"]
+            request({**item, "formats": ["carousel"]}, narrower)
 
     def test_fresh_copy_setup_keeps_unknowns_blank_and_preserves_saved_profile(self):
         root = Path(self.scratch.name) / "fresh"
@@ -516,6 +519,7 @@ class LifecycleTest(unittest.TestCase):
         self.launch()
         old_version = self.run["strategy_version"]
         self.run["last_material_change_at"] = (now() - timedelta(days=20)).isoformat()
+        self.run["live_since"] = self.run["last_material_change_at"]
         self.run["review_evidence"] = self.sales_evidence()
         self.run.update(status="ready", group="optimize", step="optimization-decision")
         self.run["records"]["business-performance"] = valid_result("business-performance", {
@@ -833,6 +837,7 @@ class LifecycleTest(unittest.TestCase):
         self.launch()
         original = self.run["records"]["strategy-development"]["data"]
         original["next_review_on"] = (now().date() - timedelta(days=1)).isoformat()
+        self.run["strategy_reconsideration"] = {"required": True, "reason": "Fixture requests a strategy reassessment."}
         self.store.save(self.run, "fixture_expired_strategy", {})
         self.run = ready_review(self.store, self.run, force=True)
         while self.run["step"] != "strategy-development":

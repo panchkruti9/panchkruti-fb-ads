@@ -19,3 +19,11 @@ Record the material-change time and first complete new window. Preserve the prio
 State the verified amount, effective state and next check. If the result is partial or unverified, say that precisely and retain the recovery task until resolved.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Immediately before applying an increase verify signed authority, exact starting amount, account scope, current configuration, active delivery, stock context and spending headroom. If an external process changed funding, prepare the current proposal rather than applying a stale increment.
+
+Checkpoint before the provider write and read back the exact new amount. Resume a known pending operation instead of adding the increment again. Record changed objects and the new comparable period; preserve historical results. Monitor marginal contribution and delivery at the new level instead of assuming prior CPA remains constant. Report actual completion, next condition/time and any genuine uncertainty.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

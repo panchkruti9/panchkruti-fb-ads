@@ -377,6 +377,16 @@ def windows(run, account):
     last = datetime.now(zone).date() - timedelta(days=1 + criteria["lag_days"])
     number = criteria["window_days"]
     first = last - timedelta(days=number - 1)
+    from .state import comparison_anchor
+    changed = comparison_anchor(run)
+    if changed:
+        clean = datetime.fromisoformat(changed).astimezone(zone).date() + timedelta(days=1)
+        delivered = run.get("campaign_ledger", {}).get(run.get("meta", {}).get("id"), {}).get("first_delivery_on")
+        if delivered:
+            clean = max(clean, date.fromisoformat(delivered) + timedelta(days=1))
+        if first < clean <= last:
+            first = clean
+            number = (last - first).days + 1
     earlier = first - timedelta(days=number)
     return zone, {"current": (first, last), "previous": (earlier, first - timedelta(days=1))}
 

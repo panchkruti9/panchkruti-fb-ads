@@ -20,7 +20,7 @@ TAG = "meta-jobs"
 WORKFLOW = "meta-jobs.yml"
 MAX_BUNDLE = 256 * 1024 * 1024
 OPERATIONS = {"readiness", "account", "collect", "health", "review", "prepare", "activation",
-              "budget-validation", "execute", "reconcile", "verify", "launch-audit", "accounting", "billing"}
+              "budget-validation", "execute", "reconcile", "verify", "launch-audit", "accounting", "billing", "guard", "capabilities"}
 
 
 def directory(store):
@@ -98,7 +98,7 @@ def job_folder(store, job_id):
 def pack_request(store, run, operation, options):
     require(operation in OPERATIONS, "Unsupported Meta operation.")
     scope = {"run": run["id"], "revision": run["revision"], "operation": operation, "options": options}
-    if operation in {"readiness", "account", "collect", "review", "verify", "launch-audit", "billing"}:
+    if operation in {"readiness", "account", "collect", "review", "verify", "launch-audit", "billing", "capabilities"}:
         scope["read_window"] = int(time.time() // 300)
     job_id = fingerprint(scope)[:32]
     folder = job_folder(store, job_id)
@@ -199,6 +199,9 @@ def import_result(store, run, result):
 
 
 def invoke(store, run, operation, options=None):
+    if operation == "prepare" and run["step"] == "optimization-execution":
+        from .workflow import management_scopes
+        options = {**(options or {}), "managed_scopes": management_scopes(store, run)}
     result = submit_job(store, run, operation, options)
     if result.get("events"):
         updated = import_result(store, run, result)
@@ -240,7 +243,15 @@ def perform(store, run, operation, options):
             writer = Meta(run["request"]["account_id"], writer=True)
             writer.details()
             ready = operator_setup(run)
+            ready["lifecycle_contract_version"] = 2
             return ready
+        if operation == "guard":
+            from .guard import check
+            check(store, run, lambda account: Meta(account, writer=True))
+            return None
+        if operation == "capabilities":
+            from .recipes import inspect_capabilities
+            return inspect_capabilities(store, run, client)
         if operation == "account":
             return {"details": client.details(), "report": client.account_report(), "budget": client.budget()}
         if operation == "billing":
@@ -253,6 +264,9 @@ def perform(store, run, operation, options):
         if operation == "health":
             from .ledger import refresh
             refresh(store, run, client)
+            if (run["request"].get("brand") or {}).get("policy", {}).get("management_authority") and not run.get("proposal"):
+                from .guard import check
+                run = check(store, run, lambda _account: client)
             monitor_waiting(store, run, lambda _: client)
             return None
         if operation == "accounting":
@@ -270,7 +284,7 @@ def perform(store, run, operation, options):
             return review_inputs(run, client, order_reader=absent)
         if operation == "prepare":
             assets = current_media(run)["assets"] if run["step"] == "campaign-build" else None
-            prepare(store, run, client, assets=assets)
+            prepare(store, run, client, assets=assets, managed_scopes=options.get("managed_scopes"))
             return None
         if operation == "activation":
             from .workflow import submit

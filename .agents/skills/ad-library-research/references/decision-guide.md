@@ -19,3 +19,11 @@ Propose a distinct execution that fits this product's evidence and available pro
 Record library coverage and use other accessible advertiser material as a labeled source. Continue the strategy with its limits instead of treating an optional competitor ad as a required gate.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Search advertiser names and relevant buying-language variants in the chosen country. Record visible ad reference/date, hook, demonstration, proof, offer, format and destination. Group by buying idea rather than counting color variants. Compare active and visible historical material only within the coverage actually returned.
+
+A long-running ad may inspire a hypothesis but reveals no verified spend, purchase rate or contribution. When throttled, save the gap and use accessible brand/public material as a separately labeled source. The campaign need not wait for competitor ads. Propose an original execution supported by this product and identify which observed pattern influenced it.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

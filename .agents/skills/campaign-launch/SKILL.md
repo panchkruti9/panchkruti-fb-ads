@@ -5,7 +5,7 @@ description: Verify a paused Meta build, prepare the exact launch decision and e
 
 # Campaign Launch
 
-Use after Campaign Build at the internal `activation-check` step. Read the saved build receipt, selected strategy, effective brand policy and [launch checks](references/checks.md).
+Use after Campaign Build at the internal `activation-check` step. Read the saved build receipt, selected strategy, effective brand policy and [launch checks](references/checks.md), [practical launch decisions](references/decision-guide.md) and [shared decision method](../meta-ads/references/decision-method.md).
 
 A successful paused build proves object creation. Launch additionally needs the correct destination, a usable checkout, verified Purchase source, appropriate previews and approved spend authority. Match campaign, ad set and ad IDs to the saved receipt. Verify crop, text, URL and CTA in each intended placement. A preview API response alone does not prove visual quality. The launch worker first collects live evidence automatically: the selected account-owned pixel, Purchase event statistics, Purchase optimization settings, installed storefront pixel, the assigned variant's checkout navigation, previews and account spending control. Use `meta-ads gateway RUN_ID --operation launch-audit` to inspect independent Meta checks. Shopify plugin availability distinguishes an untracked zero quantity from a sold-out product. Do not request a new paid test order by default. Store-wide Purchase activity proves source activity, not an exact-product sale or verified deduplication; retain that limitation. A specific failed check is investigated before requesting user help.
 
@@ -13,7 +13,7 @@ Keep brand-owned approved artwork intact when suitable. For newly written copy o
 
 Submit the checkpoint fields returned by the lifecycle: `destination_ok`, `purchase_event_ok`, `checkout_ok`, `preview_checks`, `tracking_reference`, `spend_control_reference`. Explain the evidence behind any false value. A technical failure has a concrete recovery action; do not ask the owner to invent technical IDs or repeat an existing approval.
 
-The next `activate` proposal identifies exact objects, settings and spend. Show that completed proposal and request the saved policy's required owner approval. Execute through the same protected Meta gateway. Reconcile partial results; never activate a replacement campaign as a workaround. Report configured status and effective delivery separately after exact readback.
+The next `activate` proposal identifies exact objects, settings and spend. Show the completed launch and use standing management authority when it covers the allocation and approved media. Ask for a decision only when the saved policy actually requires one; preserve legacy approvals. Execute through the same protected Meta gateway. Reconcile partial results; never activate a replacement campaign as a workaround. Report configured status and effective delivery separately after exact readback.
 
 On verified activation, save the first review time, account timezone, reporting lag and unchanged strategy criteria. Record the launch and next check in the readable campaign log. Continue monitoring through the orchestrator.
 

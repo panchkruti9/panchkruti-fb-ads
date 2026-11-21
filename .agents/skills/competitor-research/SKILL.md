@@ -3,70 +3,20 @@ name: competitor-research
 description: "Identify credible ways the brand can present its offer differently from alternatives a buyer would actually consider."
 ---
 
-## Skill Name
-
-Competitor Research
-
-## Purpose
+# Competitor Research
 
 Identify credible ways the brand can present its offer differently from alternatives a buyer would actually consider.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `competitor-research`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Customer Research result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `competitors`, `offers`, `messaging`, `creative_patterns`, `opportunities`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-Public web search and competitor product pages.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-1. Search by the shopper’s use case, destination country and product form. Include direct alternatives and relevant substitutes, such as a single product instead of a bundle. Record why each alternative belongs in the comparison. Open its product and offer pages and date the observations.
-2. Compare the real bundle contents, market, price per unit where comparable, shipping and offer conditions where visible, opening promise, and visible proof. Note checkout-only terms as unverified until checked. Attribute each outcome claim to the advertiser.
-3. Turn a difference into a testable opportunity only if Product Research confirms the brand can demonstrate it. For example, lead with verified routine clarity if comparable products leave the sequence unclear and Customer Research shows that confusion matters.
-
-## Rules
-
-Absence from a search result is not evidence of absence. Apply the shared operating rules.
-
-## Decision Logic
-
-Keep a market gap as a hypothesis until supported by customer or account evidence. Public prices and messaging can support differentiation. They leave demand and profitability unverified.
-
-## Output
-
-Find positioning opportunities grounded in observable market evidence; save the findings as a step result with dated source references.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `competitors`, `offers`, `messaging`, `creative_patterns`, `opportunities`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Check that conclusions follow from the evidence and list limitations before submission.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-Read/analysis only; no approval or Meta mutation at this step.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Meta Ad Library Research. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

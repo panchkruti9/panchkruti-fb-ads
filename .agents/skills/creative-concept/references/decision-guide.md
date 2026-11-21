@@ -19,3 +19,11 @@ Specify placement, aspect ratio, authentic pack/reference images, mandatory word
 Check that production can actually make the concept with available assets. If the main promise cannot be shown honestly, choose another concept rather than asking copy to hide a visual contradiction.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Build concepts around distinct purchase reasons: a useful situation, product demonstration, objection answer, credible comparison, bundle value or relevant proof. Tie each to the strategy contract and explain why the viewer should care before specifying colors or layout. Format choice follows the message and available authentic assets. A different border is not a different buying hypothesis.
+
+Plan a manageable portfolio at the actual spend; if only one ad is viable, document the reason and next challenger. Preserve a useful control while preparing the next idea. For a new design provide authentic pack references, exact intended text, placement crops and production instructions. Show the completed design for approval; production approval concerns generated media, while ordinary factual caption iteration can continue within guidance.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

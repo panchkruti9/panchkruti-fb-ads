@@ -1,5 +1,6 @@
 """Plan, authorize and verify account writes."""
 import hashlib
+import calendar
 import hmac
 import json
 import os
@@ -10,19 +11,80 @@ from decimal import Decimal
 from urllib.error import HTTPError
 from urllib.request import Request
 
-from .meta import (Stop, account_identity, brand_profile, canonical, destination, fingerprint, meta_id,
+from .meta import (Stop, account_identity, account_zone, brand_profile, budget_projection, canonical, destination, fingerprint, meta_id,
                    minor, policy, require, wire_minor)
 from .plans import PLACEMENTS, ad_plan, string, targeting, verify_audiences
 from .sources import drive_inventory, drive_media, storefront
 from .state import now, parse_time, stamp
+from .authority import owner_required
 
 OWNER_ACTIONS = {"activate", "budget"}
 GATES = {"campaign-build": "build", "activate": "activate", "retire": "pause",
          "optimization-execution": "pause", "scaling-approval": "budget", "safety-pause": "pause"}
 
 
+def operation_for(run):
+    if run["step"] == "optimization-execution":
+        decision = run["records"]["optimization-decision"]["data"]["decision"]
+        return {"ALLOCATE": "allocation", "AUDIENCE": "audience", "RESUME": "resume"}.get(decision, "pause")
+    return GATES[run["step"]]
+
+
 class Deferred(Stop):
     """A confirmed upload needs more processing time before the next write."""
+
+
+class CreativeApprovalRequired(Stop):
+    """A completed agent-designed original needs its actual owner decision."""
+
+
+def approve_creative(store, run_id, *, file_id, revision, md5, owner, reference):
+    """Bind the user's preview decision to exact original bytes and revision."""
+    with store.lease("executor"):
+        run = store.get(run_id)
+        require(not run.get("proposal"), "Resolve the current proposal before recording a new creative approval.")
+        rules = policy(run["request"].get("brand"))
+        string(owner, "creative approver")
+        string(reference, "user preview approval reference")
+        require(not rules.get("owners") or owner in rules["owners"], "Creative approver is outside the brand policy.")
+        require(re.fullmatch(r"[0-9a-f]{32}", md5), "Use the verified original's MD5 checksum.")
+        string(file_id, "Drive file ID")
+        string(revision, "Drive revision")
+        value = {"run_id": run_id, "file_id": file_id, "revision": revision, "md5": md5,
+                 "owner": owner, "reference": reference, "at": stamp(), "account_id": run["request"]["account_id"],
+                 "brand_id": (run["request"].get("brand") or {}).get("brand_id")}
+        from .gateway import enabled, operator_key
+        key = operator_key(store) if enabled(store) else None
+        run.setdefault("creative_approvals", {})[file_id] = {**value, "signature": sign(value, key=key)}
+        if run.get("creative_approval_request"):
+            pending = [item for item in run["creative_approval_request"] if not
+                       run["creative_approvals"].get(item["file_id"], {}).get("revision") == item["revision"]]
+            run["creative_approval_request"] = pending
+            if not pending:
+                run.pop("help_request", None)
+                if run["status"] == "blocked" and run["step"] == "campaign-build":
+                    run.update(status="ready", blockers=[])
+        store.save(run, "creative_approved", value)
+        return run
+
+
+def verify_creative_approvals(run, assets):
+    selected = run.get("records", {}).get("asset-selection", {}).get("data", {}).get("assets", [])
+    for item in selected:
+        require(item.get("origin", "brand") in {"brand", "agent"}, "Unknown creative origin.")
+        if item.get("origin") != "agent":
+            continue
+        asset = assets.get(item["file_id"])
+        approval = run.get("creative_approvals", {}).get(item["file_id"], {})
+        value = {k: v for k, v in approval.items() if k != "signature"}
+        rules = policy(run["request"].get("brand"))
+        valid = (asset and approval.get("account_id") == run["request"]["account_id"]
+                and approval.get("brand_id") == (run["request"].get("brand") or {}).get("brand_id")
+                and all(approval.get(k) == asset[k] for k in ("file_id", "revision", "md5"))
+                and (not rules.get("owners") or approval.get("owner") in rules["owners"])
+                and hmac.compare_digest(approval.get("signature", ""), sign(value)))
+        if not valid:
+            raise CreativeApprovalRequired("New agent-designed creative needs the user's approval of its completed preview before build.")
 
 
 def approval_setup(run):
@@ -174,6 +236,8 @@ def read_object(client, node, status):
     if status is not None:
         fields += ",configured_status,effective_status"
     data = client.owned(node["id"], fields)
+    if isinstance(expected.get("rule"), dict) and isinstance(data.get("rule"), str):
+        data["rule"] = json.loads(data["rule"])
     if "targeting" in expected:
         remote = data.get("targeting") or {}
         if expected["targeting"].get("custom_audiences"):
@@ -189,6 +253,11 @@ def read_object(client, node, status):
         if isinstance(returned_name, str) and re.fullmatch(re.escape(expected["name"]) + suffix, returned_name):
             comparison = {**data, "name": expected["name"]}
     require(matches(comparison, expected), f"Meta settings on {node['id']} differ from the proposal.")
+    expected_cards = expected.get("object_story_spec", {}).get("link_data", {}).get("child_attachments")
+    if expected_cards:
+        actual_cards = data.get("object_story_spec", {}).get("link_data", {}).get("child_attachments", [])
+        require(len(actual_cards) == len(expected_cards) and all(matches(a, e) for a, e in zip(actual_cards, expected_cards)),
+                "Meta carousel card order differs from the approved design.")
     if status:
         require(data["configured_status"] == status, f"Expected {status} on Meta object {node['id']}.")
     return data
@@ -211,6 +280,9 @@ def previews(client, ad_ids):
 
 
 def verify_batch(client, batch):
+    if batch.get("catalogue_plan"):
+        from .recipes import verify_catalogue
+        verify_catalogue(batch["catalogue_plan"], client)
     cid = batch["campaign_id"]
     if not batch["addition"]:
         expected = {n["id"] for n in batch["objects"] if n["kind"] in {"ad", "adset"}}
@@ -228,16 +300,17 @@ def verify_batch(client, batch):
             require(version == obj["creative_version"], "The Meta creative changed after the build.")
 
 
-def make_proposal(run, client, assets=None):
-    operation = GATES[run["step"]]
+def make_proposal(run, client, assets=None, *, managed_scopes=None):
+    operation = operation_for(run)
     records = run["records"]
-    if operation != "pause":
-        require(date.fromisoformat(records["strategy-development"]["data"]["next_review_on"]) >= now().date(),
-                "Current strategy needs review before an account write.")
+    # Review dates prompt reconsideration; unchanged dated research is not a write ban.
     require(client.details()["account_status"] == 1, "Meta account is inactive.")
     impact = None
     if operation == "build":
         plan = ad_plan(run, drive_inventory() if assets is None else assets)
+        verify_creative_approvals(run, plan["assets"])
+        from .recipes import verify_catalogue
+        verify_catalogue(plan, client)
         verify_audiences(client, plan["adsets"])
         addition = run.get("create_mode") in {"test", "refresh"}
         if not addition:
@@ -247,6 +320,9 @@ def make_proposal(run, client, assets=None):
                 require(not matches_by_name(client, "ads", ad["name"]), "Ad name exists in Meta.")
         impact = client.budget(add=0 if addition else plan["daily_minor"])
         action = {"plan": plan, "identity": identity(plan, client), "addition": addition}
+        if run.get("create_mode") == "recreate" and run.get("meta", {}).get("id"):
+            impact, handover = replacement_impact(client, run["meta"], plan["daily_minor"])
+            action["handover"] = handover
     elif operation == "activate":
         batch = run["meta"]["pending_batch"]
         verify_audiences(client, batch.get("audience_adsets", []))
@@ -260,6 +336,8 @@ def make_proposal(run, client, assets=None):
         for node in batch["objects"]:
             read_object(client, node, "PAUSED")
         impact = client.budget(add=0 if batch["addition"] else batch["daily_minor"])
+        if batch.get("handover"):
+            impact, _ = replacement_impact(client, batch["handover"], batch["daily_minor"])
         cap_change = launch_cap_change(run, client, impact)
         action = {"batch": batch, "readiness": readiness}
         if cap_change:
@@ -284,6 +362,48 @@ def make_proposal(run, client, assets=None):
         require(item["configured_status"] == "ACTIVE", "Pause target is no longer active.")
         action = {"id": item["id"], "name": item["name"], "kind": kind, "before": "ACTIVE", "after": "PAUSED",
                   "rationale": rationale, "retirement": retirement}
+    elif operation == "resume":
+        from .recipes import resume_recipe
+        action = resume_recipe(run, client)
+        action["configuration"] = campaign_configuration(client, run["meta"])
+        impact = client.budget(add=action["extra_daily_minor"])
+    elif operation == "allocation":
+        decision = records["optimization-decision"]["data"]
+        changes = decision.get("changes")
+        require(isinstance(changes, list) and changes, "Allocation needs an exact reduction or budget transfer.")
+        items, seen = [], set()
+        scopes = {x["id"]: x["name"] for x in (managed_scopes or [])}
+        scopes[run["meta"]["id"]] = run["meta"]["name"]
+        for change in changes:
+            require(set(change) == {"target_id", "from_daily_minor", "to_daily_minor"}, "Invalid allocation change.")
+            before, after = minor(change["from_daily_minor"], positive=True), minor(change["to_daily_minor"], positive=True)
+            target_id = meta_id(change["target_id"])
+            if target_id in scopes:
+                kind, campaign_id = "campaign", target_id
+                item = client.scope(target_id, kind, scopes[campaign_id])
+                require(wire_minor(item.get("daily_budget")) > 0, "Transfer actual campaign funding, not an ad-set-funded parent.")
+            else:
+                raw = client.owned(target_id, "campaign_id")
+                campaign_id = raw.get("campaign_id")
+                require(campaign_id in scopes, "Allocation target is outside enrolled campaigns for this client.")
+                kind = "adset"
+                item = client.scope(target_id, kind, scopes[campaign_id])
+                parent = client.scope(campaign_id, "campaign", scopes[campaign_id])
+                require(not wire_minor(parent.get("daily_budget")), "A campaign-budget ad set does not own separate funding.")
+            require(item["id"] not in seen and item["configured_status"] == "ACTIVE"
+                    and wire_minor(item.get("daily_budget")) == before, "Allocation starting budget changed.")
+            seen.add(item["id"])
+            items.append({"id": item["id"], "name": item["name"], "kind": kind, "before": before, "after": after,
+                          "campaign_id": campaign_id, "campaign_name": scopes[campaign_id]})
+        require(sum(x["after"] for x in items) <= sum(x["before"] for x in items), "Allocation cannot increase total funding.")
+        current = client.budget()
+        new_daily = current["daily_minor"] + sum(x["after"]-x["before"] for x in items)
+        impact = project_daily(client, current, new_daily)
+        action = {"changes": sorted(items, key=lambda x: x["after"] - x["before"]), "rationale": decision["rationale"],
+                  "starting_daily_minor": current["daily_minor"]}
+    elif operation == "audience":
+        from .recipes import audience_recipe
+        action = audience_recipe(run, client)
     else:
         data = records["scaling-proposal"]["data"]
         require(records["scaling-eligibility"]["data"]["eligible"] is True
@@ -308,6 +428,31 @@ def make_proposal(run, client, assets=None):
                 "created_at": stamp(), "nonce": uuid.uuid4().hex}
     proposal["id"] = fingerprint(proposal)
     return proposal
+
+
+def replacement_impact(client, target, new_daily):
+    old = client.scope(target["id"], "campaign", target["name"])
+    require(old["configured_status"] in {"ACTIVE", "PAUSED"}, "Replacement predecessor is no longer usable.")
+    if old["configured_status"] == "ACTIVE":
+        prior = wire_minor(old.get("daily_budget"))
+        if not prior:
+            prior = sum(wire_minor(row.get("daily_budget")) for row in client.pages(old["id"] + "/adsets", "id,configured_status,daily_budget")
+                        if row.get("configured_status") == "ACTIVE")
+    else:
+        prior = 0
+    current = client.budget()
+    daily = current["daily_minor"] - prior + new_daily
+    return project_daily(client, current, daily), {"id": old["id"], "name": old["name"], "before": old["configured_status"], "daily_minor": prior}
+
+
+def project_daily(client, current, daily):
+    zone = client.details()["timezone_name"]
+    today = now().astimezone(account_zone(zone)).date()
+    projection = budget_projection({"daily_minor": daily,
+        "spend": str(Decimal(current["spent_month_minor"]) / policy()["minor_per_unit"]),
+        "assumed_remaining_days": calendar.monthrange(today.year, today.month)[1]-today.day+1,
+        "as_of": today.isoformat(), "timezone": zone}, policy())
+    return projection
 
 
 def activation_readback(run, client):
@@ -354,7 +499,7 @@ def authorize(store, run_id, proposal_ref, *, operator, owner, reference, reject
         string(operator, "operator identity")
         string(reference, "decision reference")
         require("operators" not in rules or operator in rules["operators"], "Operator is outside the brand policy.")
-        if p["operation"] in rules.get("owner_approval_actions", OWNER_ACTIONS) and not reject:
+        if owner_required(run, p) and not reject:
             string(owner, "owner identity for explicit approval")
             require(not rules.get("owners") or owner in rules["owners"], "Owner is outside the brand policy.")
         decision = {"proposal_id": proposal_ref, "operator": operator, "owner": owner,
@@ -386,7 +531,7 @@ def verify_approval(run, *, readback_only=False, signing_key=None):
             and hmac.compare_digest(a["signature"], sign({k: v for k, v in a.items() if k != "signature"}, key=signing_key)),
             "Invalid approval for this proposal.")
     require("operators" not in rules or a["operator"] in rules["operators"], "Operator is outside the brand policy.")
-    if p["operation"] in rules.get("owner_approval_actions", OWNER_ACTIONS):
+    if owner_required(run, p):
         string(a["owner"], "owner approval")
         require(not rules.get("owners") or a["owner"] in rules["owners"], "Owner is outside the brand policy.")
     require(p["policy"] == fingerprint(rules), "Policy changed after approval.")
@@ -453,7 +598,7 @@ class Executor:
         if kind == "ad":
             expected["creative"] = {"id": payload["creative"]["creative_id"]}
         status = payload.get("status")
-        if kind in {"campaign", "ad"} and key not in self.journal:
+        if kind in {"campaign", "ad", "audience"} and key not in self.journal:
             require(not matches_by_name(client, edge, payload["name"]), f"Duplicate Meta name {payload['name']}.")
 
         def verify(response):
@@ -496,11 +641,21 @@ class Executor:
         impact = self.client.budget(replace=replace, add=add)
         require(impact["passed"] and impact["daily_minor"] <= self.proposal["impact"]["daily_minor"],
                 "Current account exposure exceeds the approved daily allocation or monthly policy.")
+        authority = policy().get("management_authority")
+        if authority:
+            owner = bool(self.run.get("approval", {}).get("owner"))
+            daily = max(authority["daily_minor"], self.proposal["impact"]["daily_minor"] if owner else 0)
+            monthly = max(authority["monthly_minor"], self.proposal["impact"]["monthly_minor"] if owner else 0)
+            require(impact["daily_minor"] <= daily and impact["monthly_minor"] <= monthly,
+                    "Fresh exposure exceeds the user's standing allocation; reduce or pause within authority.")
         if enforce_cap:
             hard_cap(self.client, impact)
 
     def build(self):
         plan, actor, addition = (self.action[k] for k in ("plan", "identity", "addition"))
+        verify_creative_approvals(self.run, plan["assets"])
+        from .recipes import verify_catalogue
+        verify_catalogue(plan, self.client)
         verify_audiences(self.client, plan["adsets"])
         require(identity(plan, self.client) == actor, "Configured Meta identity changed after approval.")
         if self.run.get("connected"):
@@ -510,11 +665,16 @@ class Executor:
             live = drive_inventory()
         ids = {k for aset in plan["adsets"] for ad in aset["ads"]
                for k in (ad["asset_id"], ad["poster_asset_id"]) if k}
+        ids.update(card["asset_id"] for aset in plan["adsets"] for ad in aset["ads"] for card in ad.get("cards", []))
         for k in ids:
             require(live.get(k) == plan["assets"][k], "An approved Drive asset changed or moved.")
             if self.run.get("connected"):
                 read_media(self.store, self.run, live[k])
-        self.budget(add=0 if addition else plan["daily_minor"])
+        if self.action.get("handover"):
+            future, _ = replacement_impact(self.client, self.action["handover"], plan["daily_minor"])
+            require(future["passed"] and future["daily_minor"] <= self.proposal["impact"]["daily_minor"], "Replacement funding changed before paused build.")
+        else:
+            self.budget(add=0 if addition else plan["daily_minor"])
         name = plan["name"]
         nodes, ads, parents = [], [], []
         if addition:
@@ -533,7 +693,9 @@ class Executor:
         for aset in plan["adsets"]:
             fields = {"name": aset["name"], "campaign_id": campaign_id, "targeting": targeting(aset),
                       "promoted_object": {"pixel_id": actor["pixel_id"], "custom_event_type": "PURCHASE"}}
-            if addition:
+            if "catalogue" in plan:
+                fields["promoted_object"]["product_set_id"] = plan["catalogue"]["product_set_id"]
+            if addition and aset["existing_adset_id"] is not None:
                 current = {"id": aset["existing_adset_id"], "kind": "adset", "settings": fields}
                 read_object(self.client, current, "ACTIVE")
                 adset_id = current["id"]
@@ -554,7 +716,18 @@ class Executor:
                     story["instagram_user_id"] = actor["instagram_user_id"]
                 link = ad["destination"]
                 cta = {"type": ad["cta"], "value": {"link": link}}
-                if asset["mime"] == "video/mp4":
+                if ad["format"] == "catalogue":
+                    story["template_data"] = {"link": link, "message": ad["primary_text"], "name": ad["headline"],
+                                              "description": ad["description"], "call_to_action": cta}
+                elif ad["format"] == "carousel":
+                    attachments = [{"image_hash": self.media(plan["assets"][card["asset_id"]])["hash"],
+                                    "link": card["destination"], "name": card["headline"],
+                                    "description": card["description"], "call_to_action": cta}
+                                   for card in ad["cards"]]
+                    story["link_data"] = {"link": link, "message": ad["primary_text"],
+                                          "child_attachments": attachments, "multi_share_optimized": False,
+                                          "call_to_action": cta}
+                elif asset["mime"] == "video/mp4":
                     poster = self.media(plan["assets"][ad["poster_asset_id"]])
                     story["video_data"] = {"video_id": media["id"], "image_hash": poster["hash"],
                                            "message": ad["primary_text"], "title": ad["headline"],
@@ -567,8 +740,10 @@ class Executor:
                     if ad["description"]:
                         story["link_data"]["description"] = ad["description"]
                 slug = ad["name"]
-                creative = self.create("creative:" + slug, "creative", "adcreatives",
-                                       {"name": slug, "object_story_spec": story, "url_tags": ad["url_tags"]})
+                creative_payload = {"name": slug, "object_story_spec": story, "url_tags": ad["url_tags"]}
+                if "catalogue" in plan:
+                    creative_payload["product_set_id"] = plan["catalogue"]["product_set_id"]
+                creative = self.create("creative:" + slug, "creative", "adcreatives", creative_payload)
                 version = self.client.creative(creative["id"], link, ad["format"])
                 item = self.create("ad:" + slug, "ad", "ads",
                                    {"name": slug, "status": "PAUSED", "adset_id": adset_id,
@@ -579,6 +754,10 @@ class Executor:
                 ads.append({"id": item["id"], "placements": aset["placements"]})
         batch = {"campaign_id": campaign_id, "addition": addition, "daily_minor": plan["daily_minor"],
                  "name": name, "objects": nodes, "ad_ids": ads, "adsets": parents, "identity": actor}
+        if "catalogue" in plan:
+            batch["catalogue_plan"] = plan
+        if self.action.get("handover"):
+            batch["handover"] = self.action["handover"]
         audience_adsets = [{"audience": aset["audience"]} for aset in plan["adsets"] if "audience" in aset]
         if audience_adsets:
             batch["audience_adsets"] = audience_adsets
@@ -610,7 +789,18 @@ class Executor:
         verify_audiences(self.client, batch.get("audience_adsets", []))
         verify_batch(self.client, batch)
         for obj in batch["objects"]:
-            state = self.journal.get("activate:" + obj["id"], {}).get("state")
+            key = "activate:" + obj["id"]
+            state = self.journal.get(key, {}).get("state")
+            if obj["kind"] == "campaign" and state is None:
+                observed = self.client.owned(obj["id"], "configured_status")
+                if observed["configured_status"] == "ACTIVE":
+                    read_object(self.client, obj, "ACTIVE")
+                    self.journal[key] = {"state": "verified", "response": {"id": obj["id"]},
+                        "readback": {"id": obj["id"], "configured_status": "ACTIVE"}, "at": stamp(),
+                        "context": {"kind": "update", "id": obj["id"], "field": "configured_status", "before": "PAUSED", "after": "ACTIVE"},
+                        "source": "Observed approved parent already active; no POST sent."}
+                    self.store.save(self.run, "activation_observed", {"id": obj["id"], "configured_status": "ACTIVE"})
+                    state = "verified"
             read_object(self.client, obj, "ACTIVE" if state in {"sent", "verified"} else "PAUSED")
             if obj["kind"] == "ad":
                 require(storefront(obj["destination"])["reachable"], "Ad destination is no longer reachable.")
@@ -618,6 +808,10 @@ class Executor:
                             for n in batch["objects"])
         from .ledger import capture_baseline
         capture_baseline(self.store, self.run, self.client, batch)
+        if batch.get("handover"):
+            old = batch["handover"]
+            self.client.scope(old["id"], "campaign", old["name"])
+            self.update("handover:" + old["id"], old["id"], "configured_status", old["before"], "PAUSED")
         change = self.action.get("spend_control_change")
         if change:
             self.budget(add=0 if batch["addition"] or active_parent else batch["daily_minor"])
@@ -671,6 +865,25 @@ class Executor:
 
     def edit(self):
         op, data = self.proposal["operation"], self.action
+        if op == "audience":
+            payload = {k: v for k, v in data.items() if k != "retention_days"}
+            node = self.create("audience:" + data["name"], "audience", "customaudiences", payload)
+            return {"audience_id": node["id"], "name": data["name"], "eligibility": "Verify population and delivery status before targeting."}
+        if op == "allocation":
+            results = []
+            # Restart-safe journal and negative deltas first prevent temporary over-allocation.
+            for change in data["changes"]:
+                scope = {**self.run, "meta": {"id": change["campaign_id"], "name": change["campaign_name"]}}
+                _, current = scope_target(scope, self.client, change["id"], (change["kind"],))
+                require(current["configured_status"] == "ACTIVE", "Allocation target stopped being active.")
+                projected = self.client.budget()
+                require(projected["daily_minor"] <= max(data["starting_daily_minor"], self.proposal["impact"]["daily_minor"]), "External funding changed during redistribution.")
+                if change["after"] > change["before"] and "allocation:" + change["id"] not in self.journal:
+                    self.budget(replace=(change["id"], change["before"], change["after"]))
+                result = self.update("allocation:" + change["id"], change["id"], "daily_budget", change["before"], change["after"])
+                results.append(result)
+            self.budget()
+            return {"changes": results}
         scope = self.run
         if data.get("retirement"):
             live = self.run["meta"]
@@ -680,6 +893,11 @@ class Executor:
         kind, current = scope_target(scope, self.client, data["id"], (data["kind"],))
         require(kind == data["kind"] and current["name"] == data["name"], "Managed target changed.")
         field = "daily_budget" if op == "budget" else "configured_status"
+        if op == "resume" and op not in self.journal:
+            from .recipes import resume_recipe
+            require(campaign_configuration(self.client, self.run["meta"]) == data["configuration"], "Paused settings changed before resumption.")
+            resume_recipe(self.run, self.client)
+            self.budget(add=data["extra_daily_minor"], enforce_cap=True)
         if op == "budget" and op not in self.journal:
             require(current["effective_status"] == "ACTIVE", "Target is no longer active at execution.")
             self.budget(replace=(data["id"], data["before"], data["after"]), enforce_cap=True)

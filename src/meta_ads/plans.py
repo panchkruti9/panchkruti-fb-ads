@@ -19,7 +19,7 @@ APPROVED_CTAS = {"SHOP_NOW", "LEARN_MORE", "ORDER_NOW"}
 DEFERABLE = {"customer-research", "competitor-research", "ad-library-research",
              "creative-analysis", "audience-analysis", "performance-analysis", "business-performance",
              "campaign-analysis"}
-OPS = {"HOLD", "FIX", "TEST", "REFRESH", "PAUSE", "RECREATE", "SCALE"}
+OPS = {"HOLD", "FIX", "TEST", "REFRESH", "PAUSE", "RESUME", "RECREATE", "SCALE", "ALLOCATE", "AUDIENCE"}
 DATA_TYPES = {"object": (dict,), "array": (list,), "string": (str,), "integer": (int,),
               "boolean": (bool,), "record": (dict, list, str), "object?": (dict, type(None))}
 
@@ -65,8 +65,14 @@ def result(step, output):
         require(type(data[field]) in DATA_TYPES[type_name], f"{step}.{field} must be {type_name}.")
     if step == "strategy-development":
         date.fromisoformat(string(data["next_review_on"], "strategy review date"))
-        criteria = obj(data.get("criteria"), ("window_days", "lag_days", "minimum_matched_orders",
-                                               "maximum_cpa_minor", "recheck_hours"))
+        criteria = obj(data.get("criteria"))
+        base = {"window_days", "lag_days", "minimum_matched_orders", "maximum_cpa_minor", "recheck_hours"}
+        require(base <= criteria.keys() <= base | {"learning_spend_minor", "scale_windows", "repeatability_reference"}, "Invalid review criteria.")
+        if "learning_spend_minor" in criteria:
+            minor(criteria["learning_spend_minor"], positive=True)
+        require(type(criteria.get("scale_windows", 2)) is int and criteria.get("scale_windows", 2) in {1, 2}, "Select one or two scaling windows.")
+        if criteria.get("scale_windows") == 1:
+            string(criteria.get("repeatability_reference"), "dated repeatability evidence for a single-window scaling assessment")
         for field in ("window_days", "minimum_matched_orders", "recheck_hours"):
             minor(criteria[field], positive=True)
         minor(criteria["lag_days"])
@@ -136,7 +142,20 @@ def ad_plan(run, approved_assets):
     account = request["account_id"]
     rules = policy(request.get("brand"))
     require(strategy["account_id"] == account, "Campaign plan references a different Meta account.")
-    plan = obj(validated.get("plan"), ("objective", "budget_level", "daily_minor", "adsets"))
+    plan = obj(validated.get("plan"))
+    required_plan = {"objective", "budget_level", "daily_minor", "adsets"}
+    require(required_plan <= plan.keys() <= required_plan | {"catalogue"}, "Invalid campaign plan fields.")
+    if "catalogue" in plan:
+        catalogue = obj(plan["catalogue"], ("product_set_id", "catalogue_id", "retailer_ids"))
+        meta_id(catalogue["product_set_id"])
+        meta_id(catalogue["catalogue_id"])
+        seq(catalogue["retailer_ids"], "catalogue product mappings", nonempty=True)
+        require(all(isinstance(key, str) and key.strip() for key in catalogue["retailer_ids"])
+                and len(set(catalogue["retailer_ids"])) == len(catalogue["retailer_ids"]), "Catalogue retailer mappings must be distinct nonempty strings.")
+        proof = request.get("facts", {}).get("catalogue", {})
+        require(proof.get("product_id") == request["product_id"] and proof.get("variant_id") == request.get("variant_id")
+                and proof.get("source") and all(proof.get(k) == v for k, v in catalogue.items()),
+                "Catalogue needs verified product/variant-to-retailer mapping from connected evidence.")
     require(plan["objective"] == strategy["objective"] == "OUTCOME_SALES", "This executor supports website Sales.")
     require(plan["budget_level"] in {"campaign", "adset"}, "Select the actual funding level.")
     total = minor(plan["daily_minor"], positive=True)
@@ -182,7 +201,10 @@ def ad_plan(run, approved_assets):
         require(aset["name"] not in valid_sets, "Duplicate ad set.")
         valid_sets.add(aset["name"])
         if replacement:
-            meta_id(aset["existing_adset_id"])
+            if aset["existing_adset_id"] is not None:
+                meta_id(aset["existing_adset_id"])
+            else:
+                require(plan["budget_level"] == "campaign", "New funded ad sets need a separate verified budget transfer first.")
             require(aset["daily_minor"] == 0, "An ad addition cannot change ad set funding.")
         else:
             require(aset["existing_adset_id"] is None, "New build must create its ad sets.")
@@ -196,8 +218,9 @@ def ad_plan(run, approved_assets):
         require(set(placements) <= set(request.get("placements", PLACEMENTS)),
                 "Ad set uses a placement excluded by the brand or request.")
         for ad in seq(aset["ads"], "ads", nonempty=True):
-            obj(ad, ("name", "format", "stage", "asset_id", "poster_asset_id", "primary_text",
-                     "headline", "description", "cta", "destination", "url_tags"))
+            fields = {"name", "format", "stage", "asset_id", "poster_asset_id", "primary_text",
+                      "headline", "description", "cta", "destination", "url_tags"}
+            require(fields <= obj(ad).keys() <= fields | {"cards"}, "Invalid ad fields.")
             name = child_name(ad["name"], root, ad=True)
             require(name in qa and name not in seen, "Each ad must match one unique passing QA record.")
             seen.add(name)
@@ -207,6 +230,7 @@ def ad_plan(run, approved_assets):
                     "Ad copy differs from the saved copywriting variant.")
             require(ad["format"] in request.get("formats", rules["formats"]) and ad["stage"] in rules["stages"],
                     "Unapproved creative type.")
+            require((ad["format"] == "catalogue") == ("catalogue" in plan), "Catalogue recipe cannot mix ordinary ads in its product-set build.")
             require(name.startswith(root + "-" + ad["stage"] + "-")
                     and re.search("-" + ad["format"] + r"-v[0-9]+$", name), "Name, stage and format must agree.")
             asset = assets.get(ad["asset_id"])
@@ -215,6 +239,11 @@ def ad_plan(run, approved_assets):
             require(live is not None and live["revision"] == asset["revision"] and live["stage"] == ad["stage"],
                     "Approved Drive asset was removed or changed.")
             mime = live["mime"]
+            if ad["format"] == "carousel":
+                from .recipes import carousel_cards
+                carousel_cards(ad, assets, approved_assets)
+                require(ad["asset_id"] == ad["cards"][0]["asset_id"], "Carousel primary asset must be its first card.")
+                require(all(p.endswith("_feed") for p in placements), "This carousel recipe supports Feed placements.")
             require(mime in {"image/png", "image/jpeg", "video/mp4"}, "Unsupported source media.")
             if ad["format"] == "static":
                 require(mime.startswith("image/"), "Static format requires image media.")

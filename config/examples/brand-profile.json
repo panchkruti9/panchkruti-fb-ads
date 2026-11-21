@@ -24,7 +24,9 @@
     "formats": [
       "static",
       "video",
-      "story"
+      "story",
+      "carousel",
+      "catalogue"
     ],
     "placements": [
       "facebook_feed",
@@ -36,11 +38,9 @@
     ],
     "claim_rules": [],
     "operators": [
-      "operator@example.com"
+      "ads-agent"
     ],
-    "owners": [
-      "owner@example.com"
-    ],
+    "owners": [],
     "owner_approval_actions": [
       "activate",
       "budget"

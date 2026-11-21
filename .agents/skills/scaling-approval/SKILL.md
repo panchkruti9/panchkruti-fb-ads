@@ -3,70 +3,20 @@ name: scaling-approval
 description: "Record the owner’s decision against a specific budget proposal so the dispatcher can verify its authority."
 ---
 
-## Skill Name
-
-Scaling Approval
-
-## Purpose
+# Scaling Approval
 
 Record the owner’s decision against a specific budget proposal so the dispatcher can verify its authority.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `scaling-approval`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Scaling Proposal result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `approval`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-Orchestrator approve command run by the authorized operator.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-1. Present the exact proposal ID, budget-owning object, current and proposed amount, account exposure and business evidence. Wait for a decision from the authorized owner.
-2. Record the operator, owner decision reference, timestamp and proposal ID through the orchestrator. Make clear which amount and target the decision covers. If the proposal changes in substance, submit the changed proposal for a fresh decision.
-3. Before releasing the job, verify the required approval record is current and ties to the exact proposal. Rejection or absent authorization leaves the write pending or rejected according to the actual recorded decision.
-
-## Rules
-
-The agent does not sign or impersonate owner approval. Apply the shared operating rules.
-
-## Decision Logic
-
-The model must never infer consent from a previous approval or issue its own approval. Only the dispatcher releases the exact authorized action.
-
-## Output
-
-Orchestrator-generated record or a documented stop with its reason.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `approval`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Verify the exact proposal and official readback; a local preview is not a receipt.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-All Meta writes use operator approval. Owner approval is explicit for activation and budget changes.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Scaling Execution. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

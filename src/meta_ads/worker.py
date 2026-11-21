@@ -261,6 +261,12 @@ def codex_command():
 def codex_result(run, step, context, images, scratch):
     skill = (ROOT / REGISTRY[step]["path"]).read_text(encoding="utf-8")
     guide = (ROOT / ".agents/skills/meta-ads/references/operating-knowledge.md").read_text(encoding="utf-8")
+    guide += "\n\n" + (ROOT / ".agents/skills/meta-ads/references/decision-method.md").read_text(encoding="utf-8")
+    selected = (ROOT / REGISTRY[step]["path"]).parent / "references"
+    for filename in ("decision-guide.md", "checks.md"):
+        reference = selected / filename
+        if reference.is_file():
+            guide += "\n\nSelected skill knowledge (" + filename + "):\n" + reference.read_text(encoding="utf-8")
     if step in PLANNING_STEPS:
         guide += "\n\n" + (ROOT / ".agents/skills/strategy-development/references/first-campaign-decisions.md").read_text(encoding="utf-8")
     rule = (ROOT / ".agents/skills/meta-ads/references/policy.md").read_text(encoding="utf-8")
@@ -283,6 +289,11 @@ def codex_result(run, step, context, images, scratch):
               "review_evidence": run.get("review_evidence"), "records": run["records"], "source_data": context,
               "live_since": run.get("live_since"), "last_material_change_at": run.get("last_material_change_at"),
               "latest_creative_rework": changes[-1] if changes else None}
+    from .assessment import assess
+    from .recipes import capabilities
+    subset.update(evidence_assessment=assess(run), capabilities=capabilities(run),
+                  decision_contract_version=run.get("decision_contract_version", 1),
+                  object_changes=run.get("object_changes", []), agent_followups=run.get("upgrade_assessment", []))
     if step == "strategy-development":
         subset["scheduled_strategy_refresh"] = bool(run.get("strategy_refresh"))
     prompt = ("Execute exactly one Meta Ads lifecycle skill. Return the structured result only. "
@@ -400,14 +411,17 @@ def monitor_waiting(store, run, client_factory):
     due = bool(run["status"] == "blocked" and not run.get("proposal")
                and timeout and blocked_since and not run.get("safety_pause")
                and now() >= parse_time(blocked_since) + timedelta(hours=timeout))
-    if (recent and run.get("waiting_health_scope") == scope
-            and not due and now() < parse_time(recent) + timedelta(days=1)):
+    timezone = (run.get("waiting_health", {}).get("budget", {}).get("timezone")
+                or run.get("review_evidence", {}).get("account_timezone") or "UTC")
+    same_day = recent and parse_time(recent).astimezone(account_zone(timezone)).date() == now().astimezone(account_zone(timezone)).date()
+    if (same_day and run.get("waiting_health_scope") == scope and not due):
         return run
     try:
         client = client_factory(run)
         meta = run["previous_campaigns"][-1] if run.get("create_mode") == "recreate" and run.get("previous_campaigns") and run["meta"].get("pending_batch") else run["meta"]
         status = client.scope(meta["id"], "campaign", meta["name"])
-        health = {"id": meta["id"], "effective_status": status["effective_status"], "budget": client.budget()}
+        health = {"id": meta["id"], "configured_status": status.get("configured_status"),
+                  "effective_status": status["effective_status"], "budget": client.budget()}
         retired = run.get("pending_retirement") if run["status"] == "monitoring" else None
         if retired and status["effective_status"] == "ACTIVE":
             old = client.scope(retired["id"], "campaign", retired["name"])
@@ -511,6 +525,11 @@ def tick(store, run_id, *, agent=codex_result, client_factory=client_for):
 
 def tick_configured(store, run, agent, client_factory):
     if run["status"] == "monitoring":
+        if (run["request"].get("brand") or {}).get("policy", {}).get("management_authority") and not run.get("proposal"):
+            from .guard import check
+            run = check(store, run, lambda _account: client_factory(run))
+            if run["status"] != "monitoring":
+                return run
         run = monitor_waiting(store, run, client_factory)
         if run["status"] == "monitoring":
             run = ready_review(store, run)

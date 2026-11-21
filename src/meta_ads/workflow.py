@@ -7,7 +7,7 @@ from .config import configured_request
 from .execution import Deferred, GATES, Executor, activation_readback, approval_expired, campaign_configuration, expired, make_proposal
 from .meta import Meta, Stop, account_zone, campaign_key, configured, meta_id, minor, policy, require
 from .plans import OPS, result, string
-from .state import GROUPS, REGISTRY, now, parse_time, stamp
+from .state import GROUPS, REGISTRY, comparison_anchor, now, parse_time, stamp
 
 WRITES = set(GATES) | {"scaling-execution"}
 REWORK = {
@@ -35,9 +35,13 @@ def request(data, brand=None):
     require(isinstance(data.get("review_policy", {}), dict), "Review policy must be an object.")
     if brand is not None:
         review = data["review_policy"]
-        require(set(review) <= {"window_days", "lag_days", "minimum_matched_orders", "recheck_hours", "maximum_cpa_minor"},
+        require(set(review) <= {"window_days", "lag_days", "minimum_matched_orders", "recheck_hours", "maximum_cpa_minor",
+                                "learning_spend_minor", "scale_windows", "repeatability_reference"},
                 "Review policy includes an unsupported field.")
         for key, value in review.items():
+            if key == "repeatability_reference":
+                string(value, "repeatability evidence reference")
+                continue
             if key == "maximum_cpa_minor" and value is None:
                 continue
             minor(value, positive=key != "lag_days")
@@ -90,7 +94,12 @@ def hours(run):
 
 
 def schedule(run, *, outcome="COMPLETE", review_date=None):
-    due = now() + timedelta(hours=hours(run))
+    checked = now()
+    cadence = timedelta(hours=hours(run))
+    anchor = run.get("next_review_at")
+    due = parse_time(anchor) if anchor else checked
+    if due <= checked:
+        due += cadence * (int((checked - due) / cadence) + 1)
     if review_date:
         zone = account_zone(run.get("review_evidence", {}).get("account_timezone", "UTC"))
         requested = datetime.combine(date.fromisoformat(review_date), datetime.min.time(), tzinfo=zone)
@@ -99,6 +108,9 @@ def schedule(run, *, outcome="COMPLETE", review_date=None):
                next_review_at=due.isoformat(timespec="seconds"),
                proposal=None, blockers=[])
     run.pop("approval", None)
+    run["schedules"] = {"performance_review_at": due.isoformat(timespec="seconds"),
+                        "health_due_at": checked.isoformat(timespec="seconds"),
+                        "strategy_review_on": run["records"]["strategy-development"]["data"]["next_review_on"]}
 
 
 def stop(run, reasons):
@@ -138,6 +150,25 @@ def plan_replacement(run):
 def validate_strategy(run, data):
     require(date.fromisoformat(data["next_review_on"]) >= now().date(), "Strategy review date is in the past.")
     criteria = data["criteria"]
+    if criteria.get("learning_spend_minor"):
+        rules = policy(run["request"].get("brand"))
+        authority = rules.get("management_authority", {})
+        maximum = min(rules["maximum_monthly_minor"], authority.get("monthly_minor", rules["maximum_monthly_minor"]),
+                      run["request"].get("test_budget_minor", rules["maximum_monthly_minor"]))
+        daily = run["request"].get("daily_budget_minor") or authority.get("daily_minor")
+        if daily:
+            maximum = min(maximum, daily * criteria["window_days"])
+        require(criteria["learning_spend_minor"] <= maximum, "Learning exposure exceeds the approved allocation for the selected window.")
+    if run.get("decision_contract_version", 1) >= 2:
+        contract = data.get("decision_contract")
+        require(isinstance(contract, dict), "Save the buying strategy's decision_contract.")
+        for key in ("buyer", "buying_situation", "objection", "offer", "message", "proof", "delivery", "test_question"):
+            string(contract.get(key), "strategy " + key)
+        require(isinstance(contract.get("alternatives"), list) and contract["alternatives"], "Keep a reasoned alternative hypothesis.")
+        require(isinstance(contract.get("decision_conditions"), dict)
+                and all(contract["decision_conditions"].get(k) for k in ("continue", "change", "stop")),
+                "Define observable continue/change/stop conditions.")
+        data["contract_version"] = 2
     baseline = run["request"].get("review_policy", {})
     for key in baseline:
         require(key in criteria and baseline[key] == criteria[key], f"Strategy changed the supplied {key}.")
@@ -171,9 +202,9 @@ def measured_window(run, key):
             return None
         zone = account_zone(report.get("account_timezone", "UTC"))
         cutoff = now().astimezone(zone).date() - timedelta(days=1 + criteria["lag_days"])
-        if end > cutoff or (end - start).days + 1 != criteria["window_days"]:
+        if end > cutoff or not 1 <= (end - start).days + 1 <= criteria["window_days"]:
             return None
-        changed_at = run.get("last_material_change_at") or run.get("live_since")
+        changed_at = comparison_anchor(run)
         if not changed_at or start <= parse_time(changed_at).astimezone(zone).date():
             return None
         delivery = run.get("campaign_ledger", {}).get(run["meta"]["id"], {}).get("first_delivery_on")
@@ -195,15 +226,8 @@ def measured_window(run, key):
 
 
 def performance_mature(run):
-    current = measured_window(run, "current")
-    if not current:
-        return False
-    criteria = run["records"]["strategy-development"]["data"]["criteria"]
-    minimum, target = criteria["minimum_matched_orders"], criteria["maximum_cpa_minor"]
-    tracking = run["request"].get("facts", {}).get("tracking", {})
-    return tracking.get("purchase_verified") is True and (
-        current["orders"] >= minimum or bool(target and current["spend"] >= target * minimum)
-        or current["orders"] == 0)
+    from .assessment import assess
+    return assess(run)["decision_ready"]
 
 
 def scale_proof(run):
@@ -222,11 +246,14 @@ def scale_proof(run):
         return False
     current = measured_window(run, "current")
     previous = measured_window(run, "previous")
-    return bool(current and previous and previous["end"] < current["start"]
-                and all(window["orders"] >= criteria["minimum_matched_orders"]
+    windows = [current, previous] if criteria.get("scale_windows", 2) == 2 else [current]
+    if len(windows) == 1 and not criteria.get("repeatability_reference"):
+        return False
+    return bool(all(windows) and (len(windows) == 1 or previous["end"] < current["start"])
+                and all(window["orders"] >= criteria["minimum_matched_orders"] * (2 if len(windows) == 1 else 1)
                         and window["spend"] <= target * window["orders"]
                         and profitable_window(window, economics)
-                        for window in (current, previous)))
+                        for window in windows))
 
 
 def profitable_window(window, economics):
@@ -271,25 +298,39 @@ def verified_stop(run, target_id):
 
 def decision(run, data):
     choice = data["decision"]
+    reconsider = data.get("strategy_reconsideration")
+    if reconsider is not None:
+        require(isinstance(reconsider, dict) and type(reconsider.get("required")) is bool,
+                "Strategy reconsideration needs an explicit required boolean.")
+        if reconsider["required"]:
+            string(reconsider.get("reason"), "changed strategy evidence")
+            string(reconsider.get("reference"), "strategy reconsideration evidence reference")
+        run["strategy_reconsideration"] = reconsider
     require(choice in OPS, "Unsupported optimization decision.")
-    require(data["target_id"] == run["meta"]["id"] or choice == "PAUSE",
-            "This decision must target the enrolled campaign. Only PAUSE can target one of its children.")
-    if choice in {"PAUSE", "RECREATE", "TEST", "REFRESH"} and not performance_mature(run):
+    require(data["target_id"] == run["meta"]["id"] or choice in {"PAUSE", "RESUME"},
+            "This decision must target the enrolled campaign; PAUSE/RESUME can target its children.")
+    planned_test = choice == "TEST" and data.get("test_kind") == "planned-challenger"
+    if planned_test:
+        require(isinstance(data.get("exposure_plan"), dict)
+                and data["exposure_plan"].get("question") and data["exposure_plan"].get("comparison"),
+                "A planned challenger needs its question and exposure/comparison plan.")
+    if choice in {"PAUSE", "RECREATE", "TEST", "REFRESH"} and not planned_test and not performance_mature(run):
         if choice != "PAUSE" or not verified_stop(run, data["target_id"]):
             schedule(run, review_date=data["next_review_on"])
-            run["blockers"] = ["Proposed change held until there is a complete post-change sales window with enough evidence."]
+            from .assessment import assess
+            run["blockers"] = [assess(run)["reason"]]
             return
     if choice == "HOLD":
         schedule(run, review_date=data["next_review_on"])
     elif choice == "SCALE":
         if not scale_proof(run):
             schedule(run, outcome="STOP")
-            run["blockers"] = ["Scale needs two separate mature sales windows, verified tracking, a cost ceiling, "
-                               "and positive measured product contribution in both windows."]
+            run["blockers"] = ["Scale needs the strategy's documented repeatability assessment, verified tracking, "
+                               "a cost ceiling and positive measured product contribution."]
             return
         group(run, "scale")
         run["outcome"] = "SCALE"
-    elif choice == "PAUSE":
+    elif choice in {"PAUSE", "RESUME", "ALLOCATE", "AUDIENCE"}:
         run["step"] = "optimization-execution"
     elif choice in {"FIX", "TEST", "REFRESH"}:
         if choice == "FIX" and data.get("fix_kind") != "creative":
@@ -311,6 +352,29 @@ def submit(store, run, output):
     step = run["step"]
     require(step not in WRITES and run["status"] == "ready", "The workflow does not accept a manual write receipt.")
     result(step, output)
+    if step == "asset-selection" and output["status"] == "pass" and run.get("decision_contract_version", 1) >= 2:
+        require(all(asset.get("origin") in {"brand", "agent"} for asset in output["data"]["assets"]),
+                "Identify each selected asset's brand/agent origin so generated-media approval cannot be omitted.")
+    strategy = run.get("records", {}).get("strategy-development", {}).get("data", {})
+    if output["status"] == "pass" and strategy.get("contract_version", 1) >= 2:
+        data = output["data"]
+        if step in {"campaign-strategy", "creative-concept", "creative-validation"}:
+            require(data.get("strategy_id") == strategy["strategy_id"], "Tie this handoff to the exact current strategy_id.")
+        if step == "creative-concept":
+            concepts = data["concepts"]
+            require(concepts and all(isinstance(c, dict) for c in concepts), "Prepare a named buying concept, not an empty creative stage.")
+            for concept in concepts:
+                for key in ("name", "message", "hypothesis", "proof", "format", "stage"):
+                    string(concept.get(key), "creative concept " + key)
+            require(len({c["name"] for c in concepts}) == len(concepts), "Concept names must be distinct.")
+            string(data.get("portfolio_rationale"), "creative portfolio and exposure rationale")
+        if step == "creative-validation":
+            concepts = {c["name"]: c for c in run["records"]["creative-concept"]["data"]["concepts"]}
+            for ad in data["ads"]:
+                concept = concepts.get(ad.get("concept_name"))
+                require(concept and concept["name"] == ad["name"]
+                        and all(concept[k] == ad["approved_ad"][k] for k in ("format", "stage")),
+                        "The actual ad must trace to its named strategy concept, format and funnel stage.")
     if step == "strategy-development" and output["status"] == "pass":
         validate_strategy(run, output["data"])
         prior = (run.get("strategy_cycles") or [{}])[-1]
@@ -345,6 +409,9 @@ def submit(store, run, output):
         data["campaign"] = run.get("planned_name", run["request"]["name"])
         data["execution_status"] = "current"
         data["research_sources"] = [ref for key in GROUPS["research"][:-1] for ref in run["records"][key]["evidence"]]
+        if data.get("contract_version") == 2:
+            run.pop("upgrade_assessment", None)
+            run.pop("strategy_reconsideration", None)
         if run.pop("strategy_refresh", False):
             if data.get("cycle_action") == "recreate":
                 plan_replacement(run)
@@ -395,7 +462,10 @@ def ready_review(store, run, *, force=False):
     if not force and run["next_review_at"] and parse_time(run["next_review_at"]) > checked:
         return run
     due = date.fromisoformat(run["records"]["strategy-development"]["data"]["next_review_on"])
-    refresh = due < checked.date()
+    # A due date prompts reconsideration; it does not invalidate unchanged research.
+    zone = account_zone(run.get("review_evidence", {}).get("account_timezone", "UTC"))
+    run["strategy_review_due"] = due <= checked.astimezone(zone).date()
+    refresh = run.get("strategy_reconsideration", {}).get("required") is True
     if refresh:
         record_strategy_cycle(run, "scheduled_strategy_refresh")
     clear_groups(run, "optimize", "scale")
@@ -414,17 +484,52 @@ def ready_review(store, run, *, force=False):
     return run
 
 
-def prepare(store, run, client, *, assets=None):
+def management_scopes(store, run):
+    brand = run["request"].get("brand") or {}
+    return [{"id": other["meta"]["id"], "name": other["meta"]["name"]} for other in store.list()
+            if other.get("meta", {}).get("id") and other["request"]["account_id"] == run["request"]["account_id"]
+            and all((other["request"].get("brand") or {}).get(k) == brand.get(k) for k in ("brand_id", "shopify_shop"))]
+
+
+def prepare(store, run, client, *, assets=None, managed_scopes=None):
     require(run["status"] == "ready" and run["step"] in GATES, "No proposal is due.")
     if run["step"] == "scaling-approval":
         require(scale_proof(run), "Verified scale evidence is incomplete.")
+    for other in store.list():
+        if other["request"]["account_id"] == run["request"]["account_id"] and all(
+                (other["request"].get("brand") or {}).get(k) == (run["request"].get("brand") or {}).get(k)
+                for k in ("brand_id", "shopify_shop")):
+            for key, receipt in other.get("creative_approvals", {}).items():
+                run.setdefault("creative_approvals", {}).setdefault(key, receipt)
     with configured(run["request"].get("brand")):
         if run["step"] == "scaling-approval" and run["request"].get("brand"):
             require(campaign_configuration(client, run["meta"]) == run.get("campaign_configuration"),
                     "Meta configuration changed after the sales review.")
-        proposal = make_proposal(run, client, assets=assets)
+        from .execution import CreativeApprovalRequired
+        try:
+            proposal = make_proposal(run, client, assets=assets,
+                                     managed_scopes=management_scopes(store, run) if managed_scopes is None else managed_scopes)
+        except CreativeApprovalRequired as error:
+            selected = run["records"]["asset-selection"]["data"]["assets"]
+            run["creative_approval_request"] = [{"file_id": item["file_id"], "revision": item["revision"],
+                "preview": "https://drive.google.com/file/d/" + item["file_id"] + "/view"}
+                for item in selected if item.get("origin") == "agent"]
+            run["help_request"] = {"owner": "user", "question": "Approve the completed new creative previews shown for this campaign?"}
+            stop(run, [str(error)])
+            store.save(run, "creative_approval_needed", {"previews": run["creative_approval_request"]})
+            return run
     run.update(proposal=proposal, status="awaiting_approval", blockers=[])
     store.save(run, "proposal_ready", proposal)
+    from .authority import owner_required
+    rules = policy(run["request"].get("brand"))
+    if rules.get("management_authority") and not owner_required(run, proposal) and rules.get("operators"):
+        from .execution import authorize
+        try:
+            return authorize(store, run["id"], proposal["id"], operator=rules["operators"][0], owner=None,
+                             reference=rules["management_authority"]["reference"])
+        except Stop as error:
+            run["blockers"] = ["Agent-owned authorization setup: " + str(error)]
+            store.save(run, "management_setup_needed", {"reason": str(error)})
     return run
 
 
@@ -440,6 +545,15 @@ def execute(store, run_id, client_factory=None):
             with configured(run["request"].get("brand")):
                 client = (client_factory or (lambda account: Meta(account, writer=True)))(p["account_id"])
                 op = p["operation"]
+                from .authority import owner_required
+                rules = policy(run["request"].get("brand"))
+                if rules.get("management_authority") and approval_expired(run) and not owner_required(run, p):
+                    from .execution import verify_approval, sign
+                    verify_approval(run, readback_only=True)
+                    decision = {k: v for k, v in run["approval"].items() if k != "signature"}
+                    decision.update(at=stamp(), reference=rules["management_authority"]["reference"])
+                    run["approval"] = {**decision, "signature": sign(decision)}
+                    store.save(run, "management_authorization_renewed", {"proposal_id": p["id"]})
                 if op == "budget" and run["request"].get("brand") and not run["write_journal"].get(p["id"]):
                     require(campaign_configuration(client, run["meta"]) == run.get("campaign_configuration"),
                             "Meta configuration changed after the scale proposal.")
@@ -479,21 +593,47 @@ def execute(store, run_id, client_factory=None):
             run.setdefault("live_since", receipt.get("launch_verified_at") or stamp())
             if run.get("create_mode") == "recreate":
                 run["live_since"] = stamp()
-                if run.get("previous_campaigns"):
+                if run.get("previous_campaigns") and not p["action"]["batch"].get("handover"):
                     prior = run["previous_campaigns"][-1]
                     run["pending_retirement"] = {key: prior[key] for key in ("id", "name")}
-            run["last_material_change_at"] = stamp()
-            run.pop("campaign_configuration", None)
+            addition = p["action"]["batch"]["addition"]
+            changed_at = stamp()
+            run.setdefault("object_changes", []).append({"at": changed_at,
+                "reason": "creative-addition" if addition else "launch",
+                "objects": [n["id"] for n in p["action"]["batch"]["objects"]]})
+            if not addition:
+                run["last_material_change_at"] = changed_at
+            else:
+                run["last_portfolio_change_at"] = changed_at
+            try:
+                run["campaign_configuration"] = campaign_configuration(client, run["meta"])
+            except (Stop, KeyError, OSError):
+                run.pop("campaign_configuration", None)
             schedule(run)
         elif op == "pause" and p["action"].get("retirement"):
             run.pop("pending_retirement", None)
             schedule(run)
         elif op == "pause" and p["action"]["kind"] == "campaign":
             run.update(status="stopped", outcome="STOP", next_review_at=None, proposal=None, blockers=[])
+            stop_management = run["records"].get("optimization-decision", {}).get("data", {}).get("stop_management") is True
+            if (run["request"].get("brand") or {}).get("policy", {}).get("management_authority") and not stop_management:
+                run["management_pause"] = {"at": stamp(), "reason": p["action"]["rationale"]}
+                schedule(run, outcome="STOP")
+        elif op == "audience":
+            run.setdefault("managed_audiences", []).append(receipt)
+            schedule(run)
         else:
+            if op == "resume":
+                run.pop("management_pause", None)
+                run.pop("budget_pause", None)
             run["last_material_change_at"] = stamp()
             run.pop("campaign_configuration", None)
             scaling = run["records"].get("scaling-proposal", {}).get("data", {}) if op == "budget" else {}
+            authority = (run["request"].get("brand") or {}).get("policy", {}).get("management_authority")
+            if op == "budget" and authority and run.get("approval", {}).get("owner"):
+                authority["daily_minor"] = max(authority["daily_minor"], p["impact"]["daily_minor"])
+                authority["monthly_minor"] = max(authority["monthly_minor"], p["impact"]["monthly_minor"])
+                authority.update(reference=run["approval"]["reference"], approved_at=run["approval"]["at"])
             schedule(run, review_date=scaling.get("next_review_on"))
         store.save(run, "execution_verified", {"operation": op, "proposal": p["id"], "receipt": receipt})
         if op == "activate":

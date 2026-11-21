@@ -28,6 +28,27 @@ def local_time(value, zone):
     return parse_time(value).astimezone(zone).strftime("%d %b %Y %H:%M:%S %Z") if value else "Not recorded"
 
 
+def readable_when(value, zone):
+    return local_time(value, zone) if isinstance(value, str) and re.match(r"^\d{4}-\d{2}-\d{2}T", value) else clean(value)
+
+
+def delivery_summary(run):
+    target = run.get("meta", {}).get("id")
+    candidates = []
+    observed = run.get("delivery_observation", {})
+    if observed.get("id") == target and observed.get("at"):
+        candidates.append(observed)
+    health = run.get("waiting_health", {})
+    if health.get("id") == target and run.get("last_waiting_health_check"):
+        candidates.append({**health, "at": run["last_waiting_health_check"]})
+    receipt = run.get("last_receipt", {})
+    for item in receipt.get("objects", []) + ([receipt] if receipt.get("id") == target else []):
+        if item.get("id") == target and receipt.get("at"):
+            candidates.append({**item, "at": receipt["at"]})
+    result = max(candidates, key=lambda x: parse_time(x["at"])) if candidates else {}
+    return {"configured_status": result.get("configured_status"), "effective_status": result.get("effective_status"), "observed_at": result.get("at")}
+
+
 def describe(run):
     step, state = run["step"], run["status"]
     name = REGISTRY.get(step, {}).get("name") or step.replace("-", " ").title()
@@ -37,9 +58,18 @@ def describe(run):
     question = None
     if state == "monitoring":
         action, when, owner = "Compare the next complete Meta and Shopify reporting windows.", run.get("next_review_at"), "agent"
+        if run.get("budget_pause"):
+            action = "Review the new monthly allocation and delivery checks before resuming approved ads."
+        elif run.get("management_pause"):
+            action = "Review the saved pause reason and choose the next supported strategy or resumption."
     elif state == "awaiting_approval":
         action, when, owner = f"Review the {proposal['operation']} proposal and its impact.", "After approval", "user"
         question = f"Approve the displayed {proposal['operation']} proposal?"
+        if (run["request"].get("brand") or {}).get("policy", {}).get("management_authority"):
+            from .authority import owner_required
+            if not owner_required(run, proposal):
+                action, when, owner, question = "Complete operator authorization under the saved management instruction.", "Now", "agent", None
+                public = "working"
         change = proposal.get("action", {}).get("spend_control_change")
         if change:
             rules = (run["request"].get("brand") or {}).get("policy", {})
@@ -64,9 +94,20 @@ def describe(run):
     else:
         action, when, owner = f"Complete {name.lower()} and save the result.", "Now", "agent"
     receipt = run.get("last_receipt")
-    done = f"Verified Meta {receipt['operation']}." if receipt else "Saved research and decisions are listed below."
+    labels = {"activate": "Verified campaign activation in Meta.", "build": "Saved and verified paused ads in Meta.",
+              "pause": "Verified the pause in Meta.", "resume": "Verified delivery resumption in Meta.",
+              "allocation": "Verified budget redistribution.", "budget": "Verified the approved budget update.",
+              "audience": "Verified the audience operation."}
+    done = labels.get(receipt["operation"], "Verified the Meta operation.") if receipt else "Saved research and decisions are listed below."
+    from .assessment import assess
+    assessment = assess(run)
+    rationale = run.get("records", {}).get("optimization-decision", {}).get("data", {}).get("rationale")
+    freshness = run.get("review_evidence", {}).get("meta", {}).get("current", {}).get("observed_at")
     return {"status": public, "current_task": name, "done": done, "next_action": action,
-            "when": when, "owner": owner, "question": question, "attention": run.get("blockers", [])}
+            "when": when, "owner": owner, "question": question, "attention": run.get("blockers", []),
+            "reason": rationale or assessment["reason"], "due_condition": assessment["next_condition"],
+            "data_freshness": freshness, "evidence_state": assessment["state"], "delivery": delivery_summary(run),
+            "execution_condition": "At the next available connected-agent wake after the review becomes eligible."}
 
 
 def campaign_path(store, run):
@@ -75,7 +116,7 @@ def campaign_path(store, run):
 
 
 def render(store, run):
-    zone = account_zone("Asia/Kolkata") if (run["request"].get("brand") or {}).get("policy", {}).get("currency") == "INR" else account_zone("UTC")
+    zone = account_zone(run.get("review_evidence", {}).get("account_timezone", "UTC"))
     status = describe(run)
     ledger = spend_summary(run)
     if ledger["entries"] and ledger["entries"][0].get("baseline"):
@@ -83,7 +124,31 @@ def render(store, run):
     lines = ["# " + clean(run["request"].get("product_name", run["request"]["name"])), "",
              f"**Status** — {status['status']}", f"**Current task** — {status['current_task']}",
              f"**Done** — {status['done']}", f"**Next** — {status['next_action']}",
-             f"**When** — {status['when']}", f"**Responsible** — {status['owner']}", ""]
+             f"**When** — {readable_when(status['when'], zone)}", f"**Responsible** — {status['owner']}", ""]
+    delivery = status["delivery"]
+    lines.extend([f"**Last verified delivery** — configured {delivery['configured_status'] or 'Unknown'}, effective {delivery['effective_status'] or 'Unknown'}; observed {local_time(delivery['observed_at'], zone)}.", ""])
+    from .assessment import assess, business_summary
+    measured = assess(run)
+    business = business_summary(run)
+    current = run.get("review_evidence", {}).get("shopify", {}).get("current", {}) or {}
+    contract = run.get("records", {}).get("strategy-development", {}).get("data", {}).get("decision_contract", {})
+    lines.extend(["## Purchases and current decision", "",
+                  f"- Evidence: {clean(measured['state'])}. {clean(status['reason'])}",
+                  f"- Product paid orders: {current.get('paid_product_orders', 'Unknown')}; qualified campaign outcomes: {measured['matched_orders'] if measured['matched_orders'] is not None else 'Unknown'}.",
+                  f"- Meta-attributed purchases: {business['meta_attributed_purchases'] if business['meta_attributed_purchases'] is not None else 'Unknown'} ({business['meta_purchase_action_type'] or 'action not returned'}); attribution: {clean(business['meta_attribution_basis'] or 'Not recorded')}.",
+                  f"- Matching coverage: {measured['matching_coverage'] if measured['matching_coverage'] is not None else 'Unknown'}; unmatched sales are not assigned to advertising automatically.",
+                  f"- Reporting last observed: {status['data_freshness'] or 'Not recorded'}.",
+                  f"- Matched net receipts: {money(run, business['matched_net_receipts_minor']) if business['matched_net_receipts_minor'] is not None else 'Unknown'}; contribution after ads: {money(run, business['contribution_after_ads_minor']) if business['contribution_after_ads_minor'] is not None else 'Unknown — incomplete economics'}. This is not measured incremental profit.",
+                  f"- Current buying question: {clean(contract.get('test_question', 'See saved strategy; not yet recorded in the new decision contract.'))}",
+                  f"- Next decision condition: {clean(status['due_condition'])}", ""])
+    if run.get("strategy_cycles"):
+        lines.extend(["## Previous strategy learning", ""])
+        for cycle in run["strategy_cycles"]:
+            prior = cycle.get("strategy", {}).get("data", {})
+            hypothesis = prior.get("decision_contract", {}).get("test_question") or prior.get("creative_directions", "See archived research")
+            outcome = cycle.get("results", {}).get("optimization-decision", {}).get("data", {}).get("rationale", cycle.get("reason"))
+            lines.append(f"- {clean(cycle.get('closed_at'))}: {clean(hypothesis)} → {clean(outcome)}")
+        lines.append("")
     batch = run.get("meta", {}).get("pending_batch") or {}
     daily = batch.get("daily_minor") or run["request"].get("daily_budget_minor")
     active_entry = run.get("campaign_ledger", {}).get(run.get("meta", {}).get("id"), {})
@@ -96,7 +161,8 @@ def render(store, run):
                   f"| AGI campaign spend this month | {money(run, ledger['spent_month_minor'])} |",
                   f"| Configured daily budget | {money(run, daily) if daily is not None else 'Not configured'} |",
                   f"| Spend last refreshed | {local_time(ledger['last_observed_at'], zone) if ledger['started'] else local_time(run.get('prelaunch_spending', {}).get('observed_at'), zone) if run.get('prelaunch_spending') else 'Budget clock has not started'} |",
-                  f"| Next scheduled check | {local_time(run.get('next_review_at'), zone) if run.get('next_review_at') else 'Scheduled after verified launch'} |", "",
+                  f"| Review eligible from | {local_time(run.get('next_review_at'), zone) if run.get('next_review_at') else 'Scheduled after verified launch'} |", "",
+                  "Review eligibility is followed by the next available connected-agent wake; it is not a guarantee that a closed host runs at that exact second.", "",
                   "AGI spending uses the exact managed campaign and subtracts its pre-start baseline. Earlier account spending is shown separately. Launch verification is a timestamp; first delivery is a Meta reporting date when only daily evidence is available.", ""])
     if ledger["legacy_baseline_missing"]:
         lines.extend(["Existing launch history has no saved spend baseline. Its AGI spend remains unknown until reconciled; it is not reset to zero.", ""])
@@ -177,13 +243,20 @@ def atomic_text(path, text):
 
 def write_logs(store):
     rows = ["# Meta Ads activity", "", "Open a campaign for its decisions, results and full history.", "",
-            "| Campaign | Status | AGI launch | Spend since start | Next action | When | Responsible |", "|---|---|---|---|---|---|---|"]
+            "| Campaign | Status | AGI launch | Spend since start | Qualified outcomes | Contribution after ads | Next action | When | Responsible |", "|---|---|---|---|---|---|---|---|---|"]
     for run in store.list():
         path = campaign_path(store, run)
         atomic_text(path, render(store, run))
         status = describe(run)
         ledger = spend_summary(run)
+        from .assessment import business_summary
+        business = business_summary(run)
         link = path.relative_to(store.logs_dir).as_posix()
         label = run['request'].get('product_name') or run['meta'].get('name') or run['request']['name']
-        rows.append(f"| [{clean(label)}]({link}) | {status['status']} | {ledger['launch_verified_at'] or 'Not started'} | {money(run, ledger['spent_since_start_minor'])} | {clean(status['next_action'])} | {clean(status['when'])} | {status['owner']} |")
+        contribution = money(run, business['contribution_after_ads_minor']) if business['contribution_after_ads_minor'] is not None else 'Unknown'
+        outcomes = business['qualified_outcomes'] if business['qualified_outcomes'] is not None else 'Unknown'
+        timezone = next((x["baseline"]["timezone"] for x in ledger["entries"] if x.get("baseline")), run.get("review_evidence", {}).get("account_timezone", "UTC"))
+        zone = account_zone(timezone)
+        launch = local_time(ledger['launch_verified_at'], zone) if ledger['launch_verified_at'] else 'Not started'
+        rows.append(f"| [{clean(label)}]({link}) | {status['status']} | {launch} | {money(run, ledger['spent_since_start_minor'])} | {outcomes} | {contribution} | {clean(status['next_action'])} | {readable_when(status['when'], zone)} | {status['owner']} |")
     atomic_text(store.logs_dir / "activity.md", "\n".join(rows) + "\n")

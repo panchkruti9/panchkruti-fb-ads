@@ -3,70 +3,20 @@ name: campaign-analysis
 description: "Determine whether the current campaign is meeting the current strategy and identify the most likely limiting factor."
 ---
 
-## Skill Name
-
-Campaign Analysis
-
-## Purpose
+# Campaign Analysis
 
 Determine whether the current campaign is meeting the current strategy and identify the most likely limiting factor.
 
-## Trigger
+Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 
-Run only when the lifecycle orchestrator selects `campaign-analysis`.
+## Work and handoff
 
-## Required Inputs
+Use the orchestrator's `next` evidence and predecessor records. Explain the selected action, supporting observations, strongest alternative and what would change the decision. Unknown optional research does not stop independent work. Continue routine recovery using connected sources; ask the user once only for genuine missing help or a required completed approval.
 
-Audience Analysis result and relevant earlier evidence. Read the selected run, product, strategy and campaign target as applicable.
+Save the actual skill result before advancing. Required data fields: `goal_comparison`, `health`, `issues`, `recommendations`. The result envelope is `status`, `summary`, `evidence`, `data`, `blockers`; see [contracts](../meta-ads/references/contracts.md). Label hypotheses and coverage limitations. Never substitute a local preview for a verified provider receipt.
 
-## Required Files
+## Authority and execution
 
-`.agents/skills/meta-ads/references/policy.md`, the effective brand policy, and the orchestrator's referenced result records. For execution or handoff, also read `README.md`.
+The agent owns reasoning and the Meta gateway performs exact writes. Standing management authority permits routine strategy, launches, pauses and redistribution within the approved total; higher total spending and new agent-designed visuals require the user's actual decision. Legacy runs retain their saved approval policy until migrated. Operator signing, exact scope, readback and uncertain-write reconciliation remain mandatory.
 
-## Tools & APIs
-
-Current strategy and saved performance, business, creative and audience analysis.
-
-## Instructions
-
-Read [the practical decision guide](references/decision-guide.md) before preparing this step.
-
-1. Read the exact strategy version and launch/change history, then line up Meta delivery, Shopify data and the approved evaluation window. Label periods affected by creative, funding, promotion, inventory or measurement changes.
-2. Trace performance from eligible delivery to product visits, checkout and retained paid orders, only joining rates with valid denominators. Strong visits and falling checkout completion warrant checking fees, stock or payment before blaming creative. Rising Meta purchases with weakening Shopify matches warrants checking tags and lag before concluding actual sales rose or fell.
-3. Compare actual outcomes with the original hypothesis and decision metric. Record the strongest explanation, a plausible alternative and the cheapest check that would distinguish them. Separate verified defects from broad strategy failure.
-
-## Rules
-
-An expired strategy must be reviewed before continuing. Apply the shared operating rules.
-
-## Decision Logic
-
-Hand Optimize a specific recommendation and its confidence. When the main buyer, offer or business hypothesis has failed after a mature review, state what the next strategy must reconsider.
-
-## Output
-
-Compare performance to strategy and business constraints; save the findings as a step result with dated source references.
-
-## Output Schema
-
-The envelope uses `status`, `summary`, `evidence`, `data` and, for a blocked or limited result, `blockers`. Required `data` keys: `goal_comparison`, `health`, `issues`, `recommendations`. See the operator guide for types and special cases.
-
-## Validation
-
-Verify references, dates, scope and required fields. Reconcile contradictions. Check that conclusions follow from the evidence and list limitations before submission.
-
-## Error Handling
-
-Record the failed source or step and the next concrete action. Retry transient reads within provider limits. Do not retry an ambiguous write or change the approved target to bypass a failure.
-
-## Approval
-
-Read/analysis only; no approval or Meta mutation at this step.
-
-## Execution Log
-
-The orchestrator records run, step and UTC timestamp. Include source timestamps, precise decisions and blockers; store receipts via the executor.
-
-## Next Step
-
-Optimization Decision. Follow the CLI's returned route.
+Follow the next route returned by the orchestrator. A daily review is not an instruction to edit a healthy ad. Link the readable log after meaningful progress and explain done, current state, next action and when; include a user action only when needed.

@@ -45,6 +45,12 @@ def parse_time(value):
     return parsed
 
 
+def comparison_anchor(run):
+    """Campaign aggregates change with the portfolio; individual ad history survives."""
+    values = [run.get(k) for k in ("live_since", "last_material_change_at", "last_portfolio_change_at") if run.get(k)]
+    return max(values, key=parse_time) if values else None
+
+
 class Store:
     def __init__(self, path=None):
         self.path = Path(path or os.environ.get("META_ADS_STATE_DB") or os.environ.get("PANCHKRUTI_STATE_DB")
@@ -87,6 +93,7 @@ class Store:
                "created_at": stamp(), "records": {}, "history": [], "review_number": 0,
                "next_review_at": None, "meta": {}, "proposal": None, "strategy_version": 0,
                "write_journal": {}, "next_campaign_budget": None}
+        run["decision_contract_version"] = 2 if (request.get("brand") or {}).get("policy", {}).get("management_authority") else 1
         with self.tx():
             for other in self.list():
                 existing = other["request"]

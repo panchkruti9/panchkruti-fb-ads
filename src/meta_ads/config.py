@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 from .meta import campaign_key, destination, meta_id, minor, require
 from .plans import PLACEMENTS, string
 
-FORMATS = {"static", "video", "story"}
+FORMATS = {"static", "video", "story", "carousel", "catalogue"}
 STAGES = {"discovery", "consideration", "purchase"}
 APPROVAL_ACTIONS = {"build", "activate", "budget", "pause"}
 METRICS = {"paid_orders", "first_time_buyers"}
@@ -50,7 +50,7 @@ def profile(data):
     fields = {"currency", "minor_per_unit", "minimum_daily_minor", "maximum_daily_minor", "maximum_monthly_minor",
               "approval_hours", "creative_root", "stages", "excluded_folder", "formats", "placements",
               "claim_rules", "operators", "owners", "owner_approval_actions"}
-    require(isinstance(rules, dict) and fields <= rules.keys() <= fields | {"blocked_pause_after_hours"},
+    require(isinstance(rules, dict) and fields <= rules.keys() <= fields | {"blocked_pause_after_hours", "management_authority"},
             "Complete the required brand policy fields.")
     if rules.get("blocked_pause_after_hours") is not None:
         minor(rules["blocked_pause_after_hours"], positive=True)
@@ -77,7 +77,10 @@ def profile(data):
         require(isinstance(rules[key], list)
                 and all(isinstance(x, str) and x.strip() for x in rules[key]), f"Provide policy {key}.")
     actions = choices(rules["owner_approval_actions"], APPROVAL_ACTIONS, "owner approval actions")
-    require({"activate", "budget"} <= set(actions), "Owner approval is required for activation and budget changes.")
+    require({"activate", "budget"} <= set(actions), "Legacy owner actions must preserve activation and budget protection.")
+    if rules.get("management_authority"):
+        from .authority import validate
+        validate(rules["management_authority"], rules)
     return data
 
 

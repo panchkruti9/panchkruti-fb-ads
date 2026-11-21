@@ -19,3 +19,11 @@ Preserve a working buying reason when only execution is weak; test a new angle w
 Name the exact ad and concept, evidence, uncertainty and next creative brief. Keep the previous result in history so the next cycle does not unknowingly repeat the failed approach.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Compare actual exposure, concept, offer, destination, dates and audience/placement mix before comparing outcomes. A high-response ad may attract poor-fit clicks; inspect arrivals and purchase intent. A low-spend challenger has not earned a loser label. When both offer and message changed, report the confounding rather than assigning the result to the design.
+
+For suspected fatigue, combine comparable worsening purchase economics with exposure/frequency and creative mix; no universal frequency or weekly replacement rule applies. Consider auction, offer and destination changes too. Recommend a distinct challenger with a question and exposure plan. Retain useful existing ads unless the evidence or operational condition warrants retiring them.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.

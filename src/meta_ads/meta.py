@@ -137,7 +137,7 @@ def child_name(value, root, *, ad=False):
     require(isinstance(value, str) and value.startswith(root + "-") and len(value) <= 160,
             "Child name does not match its managed campaign.")
     suffix = value[len(root)+1:]
-    pattern = (r"(discovery|consideration|purchase)-[a-z0-9]+(?:-[a-z0-9]+)*-(static|video|story)-v[0-9]{2,}"
+    pattern = (r"(discovery|consideration|purchase)-[a-z0-9]+(?:-[a-z0-9]+)*-(static|video|story|carousel|catalogue)-v[0-9]{2,}"
                if ad else r"[a-z0-9]+(?:-[a-z0-9]+)*")
     require(re.fullmatch(pattern, suffix), "Invalid managed child name.")
     return value
@@ -290,17 +290,18 @@ class Meta:
 
     def creative(self, creative_id, link, fmt):
         item = self.owned(creative_id, "object_story_spec,url_tags,asset_feed_spec,product_set_id")
-        require(not item.get("asset_feed_spec") and not item.get("product_set_id"),
-                "Dynamic and catalogue creatives are excluded.")
+        require(not item.get("asset_feed_spec"), "Dynamic creative variations require a separate verified recipe.")
+        require(bool(item.get("product_set_id")) == (fmt == "catalogue"), "Catalogue format differs from the approved creative.")
         spec = item.get("object_story_spec", {})
-        media = spec.get("link_data") or spec.get("video_data") or {}
-        require(not media.get("child_attachments") and not media.get("product_set_id"),
-                "Only a single approved asset is supported.")
+        media = spec.get("link_data") or spec.get("video_data") or spec.get("template_data") or {}
+        require(not media.get("product_set_id"), "Catalogue media requires its own verified recipe.")
+        require(bool(media.get("child_attachments")) == (fmt == "carousel"), "Carousel structure differs from the approved format.")
         require(bool(spec.get("video_data")) if fmt == "video" else
                 bool(spec.get("link_data")) if fmt == "static" else bool(media),
                 "Meta creative does not match approved format.")
         cta_link = media.get("call_to_action", {}).get("value", {}).get("link")
         links = [url for url in (media.get("link"), cta_link) if url is not None]
+        links.extend(card.get("link") for card in media.get("child_attachments", []))
         require(links and all(url == destination(link) for url in links),
                 "Meta creative destination differs from the approved product link.")
         return fingerprint(item)

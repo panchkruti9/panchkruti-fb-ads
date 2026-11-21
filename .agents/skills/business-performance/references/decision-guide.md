@@ -19,3 +19,11 @@ Where verified costs exist, compare retained product receipts against product, f
 State the selected success metric, matching coverage, verified contribution and uncertainty. Missing campaign matches can be an attribution problem; do not describe all unmatched orders as proof the ads failed.
 
 Read the shared [operating knowledge](../../meta-ads/references/operating-knowledge.md) for source references and evidence limits. The current skill's output schema remains authoritative.
+
+## Applied purchase decisions
+
+Use the same complete dates and timezone as Meta. Report paid retained product orders, qualified campaign matches, unmatched and other-campaign orders, pending journeys and buyer-history uncertainty separately. For acquisition, unknown first-time status is not a verified returning buyer or proof of no demand.
+
+Net receipts subtract refunds/tax without double subtraction. Mixed carts need product allocation; whole-cart gross sales are not advertised-product contribution. Deduct verified product, fulfillment/shipping and payment costs plus actual ad spend. Unpaid COD orders are not paid retained purchases. With low matching coverage, show the business outcome alongside attribution uncertainty. Request missing material economics once while bounded learning and independent checks continue.
+
+Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.
