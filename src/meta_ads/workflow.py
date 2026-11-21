@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from .config import configured_request
-from .execution import Deferred, GATES, Executor, approval_expired, campaign_configuration, expired, make_proposal
+from .execution import Deferred, GATES, Executor, activation_readback, approval_expired, campaign_configuration, expired, make_proposal
 from .meta import Meta, Stop, account_zone, campaign_key, configured, meta_id, minor, policy, require
 from .plans import OPS, result, string
 from .state import GROUPS, REGISTRY, now, parse_time, stamp
@@ -439,12 +439,18 @@ def execute(store, run_id, client_factory=None):
         try:
             with configured(run["request"].get("brand")):
                 client = (client_factory or (lambda account: Meta(account, writer=True)))(p["account_id"])
-                executor = Executor(store, run, client)
                 op = p["operation"]
                 if op == "budget" and run["request"].get("brand") and not run["write_journal"].get(p["id"]):
                     require(campaign_configuration(client, run["meta"]) == run.get("campaign_configuration"),
                             "Meta configuration changed after the scale proposal.")
-                receipt = executor.build() if op == "build" else executor.activate() if op == "activate" else executor.edit()
+                already_active = op == "activate" and all(
+                    client.owned(item["id"], "configured_status")["configured_status"] == "ACTIVE"
+                    for item in p["action"]["batch"]["objects"])
+                if already_active:
+                    receipt = activation_readback(run, client)
+                else:
+                    executor = Executor(store, run, client)
+                    receipt = executor.build() if op == "build" else executor.activate() if op == "activate" else executor.edit()
         except Deferred as error:
             run.update(status="approved", blockers=[str(error)])
             store.save(run, "meta_processing", {"reason": str(error)})

@@ -644,6 +644,23 @@ class LifecycleTest(unittest.TestCase):
         activation=next(e["sequence"] for e in events if e["kind"]=="meta_write_pending" and str(e["payload"].get("operation","")).startswith("activate:"))
         self.assertLess(baseline,activation)
 
+    def test_interrupted_activation_is_completed_by_readback_without_duplicate_writes(self):
+        self.reach_build();self.approve();self.execute()
+        self.run=run_due(self.store,only=self.run["id"],client_factory=lambda _:self.client)[0]
+        self.approve(owner="fixture owner")
+        batch=self.run["proposal"]["action"]["batch"]
+        for item in batch["objects"]:
+            self.client.remote[item["id"]].update(configured_status="ACTIVE",effective_status="ACTIVE")
+        self.run["approval"]["at"]=(now()-timedelta(days=2)).isoformat()
+        self.run["approval"]["signature"]=sign({k:v for k,v in self.run["approval"].items() if k!="signature"})
+        self.run["status"]="execution_blocked"
+        self.store.save(self.run,"fixture_interrupted_activation",{})
+        before=len(self.client.posts)
+        self.execute()
+        self.assertEqual(self.run["status"],"monitoring")
+        self.assertTrue(self.run["last_receipt"]["readback_only"])
+        self.assertEqual(len(self.client.posts),before)
+
     def test_build_cannot_write_without_approval_then_activation_schedules_monitoring(self):
         self.reach_build()
         with self.assertRaises(Stop):

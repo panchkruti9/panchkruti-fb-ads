@@ -310,6 +310,21 @@ def make_proposal(run, client, assets=None):
     return proposal
 
 
+def activation_readback(run, client):
+    """Finish an already-active approved launch using reads only, even after interruption."""
+    proposal = verify_approval(run, readback_only=True)
+    require(proposal["operation"] == "activate", "Expected an approved activation receipt.")
+    batch = proposal["action"]["batch"]
+    verify_batch(client, batch)
+    objects = [read_object(client, item, "ACTIVE") for item in batch["objects"]]
+    impact = client.budget()
+    require(impact["passed"] and impact["daily_minor"] <= proposal["impact"]["daily_minor"],
+            "Observed active funding exceeds the approved launch allocation.")
+    return {"campaign_id": batch["campaign_id"], "launch_verified_at": stamp(),
+            "readback_only": True, "objects": [{k: item.get(k) for k in ("id", "configured_status", "effective_status")}
+                                                for item in objects]}
+
+
 def expired(proposal, rules=None):
     return now() > parse_time(proposal["created_at"]) + timedelta(hours=(rules or policy())["approval_hours"])
 
@@ -611,7 +626,16 @@ class Executor:
         for obj in sorted(batch["objects"], key=lambda n: {"ad": 0, "adset": 1, "campaign": 2}[n["kind"]]):
             oid = obj["id"]
             if obj["kind"] == "campaign" and "activate:" + oid not in self.journal:
-                self.budget(add=batch["daily_minor"], enforce_cap=True)
+                observed = self.client.owned(oid, "configured_status,effective_status")
+                already_active = observed["configured_status"] == "ACTIVE"
+                self.budget(add=0 if already_active else batch["daily_minor"], enforce_cap=True)
+                if already_active:
+                    self.journal["activate:" + oid] = {"state": "verified", "response": {"id": oid},
+                        "readback": {"id": oid, "configured_status": "ACTIVE"}, "at": stamp(),
+                        "context": {"kind": "update", "id": oid, "field": "configured_status", "before": "PAUSED", "after": "ACTIVE"},
+                        "source": "Observed active after authorized child activation; no parent POST sent."}
+                    self.store.save(self.run, "activation_observed", {"id": oid, "configured_status": "ACTIVE",
+                        "detail": "Parent activation observed and verified; counted existing funding once."})
             self.update("activate:" + oid, oid, "configured_status", "PAUSED", "ACTIVE")
         receipt = {"campaign_id": batch["campaign_id"], "launch_verified_at": stamp(), "objects": [
             self.client.owned(n["id"], "configured_status,effective_status") for n in batch["objects"]]}
