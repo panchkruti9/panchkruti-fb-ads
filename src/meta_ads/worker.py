@@ -557,8 +557,9 @@ def tick_configured(store, run, agent, client_factory):
                 old = run.get("campaign_configuration")
                 if old != configuration:
                     run["campaign_configuration"] = configuration
-                    run["last_material_change_at"] = stamp()
+                    run["configuration_baseline_observed_at"] = stamp()
                     if old:
+                        run["last_material_change_at"] = stamp()
                         run["review_evidence"]["configuration_changed"] = [
                             key for key, value in configuration.items() if old.get(key) != value
                         ]

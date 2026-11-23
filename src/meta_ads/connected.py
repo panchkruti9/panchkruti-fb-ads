@@ -466,7 +466,9 @@ def submit_step(store, run, packet):
             if configuration and "unavailable" not in configuration and configuration != run.get("campaign_configuration"):
                 old = run.get("campaign_configuration")
                 run["campaign_configuration"] = configuration
-                run["last_material_change_at"] = stamp()
+                run["configuration_baseline_observed_at"] = stamp()
+                if old:
+                    run["last_material_change_at"] = stamp()
                 review["configuration_changed"] = [key for key, value in configuration.items()
                                                    if old and old.get(key) != value]
             run["review_evidence"] = review

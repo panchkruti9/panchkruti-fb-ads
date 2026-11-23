@@ -62,6 +62,8 @@ def describe(run):
             action = "Review the new monthly allocation and delivery checks before resuming approved ads."
         elif run.get("management_pause"):
             action = "Review the saved pause reason and choose the next supported strategy or resumption."
+        elif run.get("strategy_reconsideration", {}).get("required") is True:
+            action = "Revisit the buying strategy and bounded learning plan using the saved review and current evidence."
     elif state == "awaiting_approval":
         action, when, owner = f"Review the {proposal['operation']} proposal and its impact.", "After approval", "user"
         question = f"Approve the displayed {proposal['operation']} proposal?"

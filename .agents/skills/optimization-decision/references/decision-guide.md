@@ -24,7 +24,7 @@ Read the shared [operating knowledge](../../meta-ads/references/operating-knowle
 
 Choose HOLD for immature/underexposed or satisfactory delivery, FIX for a verified repair, TEST for a learning question, REFRESH for diagnosed creative weakness, RECREATE for a materially different strategy, PAUSE for supported loss/operational conditions and SCALE for a verified growth case. Routine healthy checking does not require changing ads.
 
-A planned challenger uses test_kind: planned-challenger and exposure_plan with question/comparison; it need not declare the control unsuccessful. ALLOCATE supplies exact existing ad-set target IDs/from/to daily amounts without increasing total; AUDIENCE supplies a product-scoped website audience recipe. Date-based strategy reconsideration needs an explicit reason and changed evidence. Set a next trigger/time and preserve the rejected alternatives.
+A planned challenger uses test_kind: planned-challenger and exposure_plan with question/comparison; it need not declare the control unsuccessful. ALLOCATE supplies exact existing ad-set target IDs/from/to daily amounts without increasing total; AUDIENCE supplies a explicitly scoped website-event audience recipe. Date-based strategy reconsideration needs an explicit reason and changed evidence. Set a next trigger/time and preserve the rejected alternatives.
 
 Read the [shared decision method](../../meta-ads/references/decision-method.md) for calculations, evidence grades, scenario diagnosis, authority and maintained source links. Preserve a dated observation versus hypothesis distinction in the handoff.
 

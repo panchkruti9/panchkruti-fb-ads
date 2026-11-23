@@ -866,9 +866,10 @@ class Executor:
     def edit(self):
         op, data = self.proposal["operation"], self.action
         if op == "audience":
-            payload = {k: v for k, v in data.items() if k != "retention_days"}
+            payload = {k: v for k, v in data.items() if k not in {"retention_days", "audience_scope"}}
             node = self.create("audience:" + data["name"], "audience", "customaudiences", payload)
-            return {"audience_id": node["id"], "name": data["name"], "eligibility": "Verify population and delivery status before targeting."}
+            return {"audience_id": node["id"], "name": data["name"], "scope": data.get("audience_scope", "product-page"),
+                    "eligibility": "Verify population and delivery status before targeting."}
         if op == "allocation":
             results = []
             # Restart-safe journal and negative deltas first prevent temporary over-allocation.

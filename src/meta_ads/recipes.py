@@ -77,11 +77,16 @@ def inspect_capabilities(store, run, client):
 
 def audience_recipe(run, client):
     spec = run["records"]["optimization-decision"]["data"].get("audience")
-    require(isinstance(spec, dict) and set(spec) == {"name", "event", "retention_days", "product_url"},
+    required = {"name", "event", "retention_days", "product_url"}
+    require(isinstance(spec, dict) and required <= spec.keys() <= required | {"scope"},
             "Website audience needs name, event, retention_days and exact product_url.")
     name = campaign_key(spec["name"])
     require(name.startswith(run["request"]["name"] + "-"), "Audience name is outside this product's managed namespace.")
     require(spec["event"] in {"PageView", "ViewContent", "AddToCart", "InitiateCheckout", "Purchase"}, "Unsupported audience event.")
+    scope = spec.get("scope", "product-page")
+    require(scope in {"product-page", "all-store"}, "Choose product-page or explicitly all-store audience scope.")
+    require(scope != "product-page" or spec["event"] in {"PageView", "ViewContent"},
+            "A product-page URL does not establish a checkout/Purchase cohort. Choose explicit all-store scope or a separately verified product-event mapping.")
     days = spec["retention_days"]
     require(type(days) is int and 1 <= days <= 180, "Website audience retention must be 1..180 days.")
     url = destination(spec["product_url"], (run["request"].get("brand") or {}).get("website"))
@@ -90,13 +95,14 @@ def audience_recipe(run, client):
     # Read permission and event source before proposing writes; no customer data is uploaded.
     source = client.request(pixel, {"fields": "id"})
     require(source.get("id") == pixel, "Cannot verify the assigned website event source.")
+    filters = [{"field": "event", "operator": "eq", "value": spec["event"]}]
+    if scope == "product-page":
+        filters.append({"field": "url", "operator": "i_contains", "value": url.split("?", 1)[0]})
     rule = {"inclusions": {"operator": "or", "rules": [{
         "event_sources": [{"id": pixel, "type": "pixel"}], "retention_seconds": days * 86400,
-        "filter": {"operator": "and", "filters": [
-            {"field": "event", "operator": "eq", "value": spec["event"]},
-            {"field": "url", "operator": "i_contains", "value": url.split("?", 1)[0]},
-        ]}}]}}
+        "filter": {"operator": "and", "filters": filters}}]}}
     return {"name": name, "subtype": "WEBSITE", "retention_days": days, "rule": rule,
+            "audience_scope": scope,
             "description": string(run["records"]["optimization-decision"]["data"]["rationale"])}
 
 

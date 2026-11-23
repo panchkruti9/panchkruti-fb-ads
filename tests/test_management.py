@@ -473,3 +473,55 @@ class ManagementTest(unittest.TestCase):
         self.execute()
         self.assertEqual(self.run["status"], "stopped")
         self.assertIsNone(self.run["next_review_at"])
+
+    def test_first_configuration_read_does_not_invent_a_material_edit(self):
+        from meta_ads.worker import run_due
+        self.reach_build(); self.approve(); self.execute(); self.launch()
+        original = self.run["last_material_change_at"]
+        self.run.pop("campaign_configuration", None)
+        self.run["next_review_at"] = (now()-timedelta(minutes=1)).isoformat()
+        self.store.save(self.run, "fixture_first_baseline", {})
+        review = self.sales_evidence()
+        review["configuration"] = {"campaign": "verified-campaign", "adsets": "verified-adsets", "ads": "verified-ads"}
+        with patch("meta_ads.worker.review_inputs", return_value=review):
+            self.run = run_due(self.store, only=self.run["id"], max_steps=1,
+                agent=lambda *args: valid_result("performance-analysis"), client_factory=lambda _: self.client)[0]
+        self.assertEqual(self.run["last_material_change_at"], original)
+        self.assertEqual(self.run["campaign_configuration"], review["configuration"])
+        self.assertNotIn("configuration_changed", self.run["review_evidence"])
+
+    def test_first_connected_baseline_preserves_delivery_clock(self):
+        from meta_ads.connected import submit_step
+        self.reach_build()
+        self.attach_brand()
+        original = (now()-timedelta(days=3)).isoformat()
+        self.run.update(connected=True, status="ready", step="performance-analysis", group="optimize", proposal=None,
+                        last_material_change_at=original, live_since=original)
+        review = self.sales_evidence()
+        review["configuration"] = {"campaign": "c", "adsets": "s", "ads": "a"}
+        self.store.save(self.run, "fixture_connected_baseline", {})
+        self.run["connected_context"] = {"step": "performance-analysis", "revision": self.run["revision"],
+                                         "observed_at": stamp(), "data": {"review_evidence": review}}
+        result = submit_step(self.store, self.run, {"revision": self.run["revision"], "result": valid_result("performance-analysis")})
+        self.assertEqual(result["last_material_change_at"], original)
+        self.assertEqual(result["review_evidence"]["configuration_changed"], [])
+
+    def test_purchase_exclusion_does_not_silently_use_product_page_url(self):
+        self.run["request"]["landing_page"] = "https://shop.test-example.com/products/duo"
+        self.run["records"]["optimization-decision"] = {"data": {"rationale": "Exclude recent store purchasers for acquisition.",
+            "audience": {"name": NAME+"-purchasers-30d", "event": "Purchase", "retention_days": 30,
+                         "product_url": self.run["request"]["landing_page"]}}}
+        self.client.remote["12"] = {"id": "12"}
+        with self.assertRaises(Stop): audience_recipe(self.run, self.client)
+        self.run["records"]["optimization-decision"]["data"]["audience"]["scope"] = "all-store"
+        recipe = audience_recipe(self.run, self.client)
+        self.assertEqual(recipe["audience_scope"], "all-store")
+        filters = recipe["rule"]["inclusions"]["rules"][0]["filter"]["filters"]
+        self.assertEqual(filters, [{"field": "event", "operator": "eq", "value": "Purchase"}])
+
+    def test_scheduled_update_explains_the_actual_strategy_route(self):
+        self.run.update(status="monitoring", strategy_reconsideration={"required": True}, next_review_at=(now()+timedelta(days=1)).isoformat())
+        update=describe(self.run)
+        self.assertIn("buying strategy", update["next_action"])
+        self.assertEqual(update["owner"], "agent")
+        self.assertIsNone(update["question"])
