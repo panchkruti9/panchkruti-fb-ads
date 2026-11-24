@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import test_lifecycle as fixtures
 from test_lifecycle import IMG, NAME, valid_result
-from meta_ads.assessment import assess, business_summary
+from meta_ads.assessment import assess, business_summary, capture_learning_baseline, learning_budget, review_timing
 from meta_ads.authority import owner_required, grant
 from meta_ads.execution import approve_creative, verify_creative_approvals, make_proposal
 from meta_ads.meta import Stop, configured
@@ -525,3 +525,150 @@ class ManagementTest(unittest.TestCase):
         self.assertIn("buying strategy", update["next_action"])
         self.assertEqual(update["owner"], "agent")
         self.assertIsNone(update["question"])
+
+    def learning_run(self):
+        run = self.evidence_run()
+        strategy = run["records"]["strategy-development"]["data"]
+        strategy["criteria"].update(learning_spend_minor=60000, maximum_cpa_minor=None)
+        run["campaign_ledger"] = {"99": {"campaign_id": "99", "name": NAME,
+            "spent_since_start_minor": 10000, "last_observed_at": stamp()}}
+        capture_learning_baseline(run, strategy)
+        return run
+
+    def test_learning_counter_includes_immature_spend_without_a_purchase_verdict(self):
+        run = self.learning_run()
+        run["campaign_ledger"]["99"]["spent_since_start_minor"] = 70000
+        run["last_material_change_at"] = stamp()
+        run["request"]["facts"]["tracking"]["purchase_verified"] = False
+        result = assess(run)
+        self.assertEqual(result["state"], "maturing")
+        self.assertFalse(result["decision_ready"])
+        self.assertTrue(result["risk_review_required"])
+        self.assertEqual(result["learning_budget"]["spent_minor"], 60000)
+        self.assertEqual(result["learning_budget"]["remaining_minor"], 0)
+        self.assertIn("allowance now", result["next_condition"])
+        self.assertEqual(learning_budget(run)["spent_minor"], 60000)
+
+    def test_learning_bound_allows_risk_pause_but_not_replacement(self):
+        run = self.learning_run()
+        run["campaign_ledger"]["99"]["spent_since_start_minor"] = 70000
+        run.pop("review_evidence")
+        data = {"target_id": "99", "next_review_on": now().date().isoformat()}
+        decision(run, {**data, "decision": "RECREATE"})
+        self.assertEqual(run["status"], "monitoring")
+        decision(run, {**data, "decision": "PAUSE"})
+        self.assertEqual(run["step"], "optimization-execution")
+        self.assertNotIn("planned_name", run)
+
+    def test_bound_review_preempts_cadence_without_resetting_accounting(self):
+        run = self.learning_run()
+        run["campaign_ledger"]["99"]["spent_since_start_minor"] = 70000
+        schedule(run)
+        future = run["next_review_at"]
+        self.store.save(run, "fixture_learning", {})
+        ready_review(self.store, run)
+        self.assertEqual(run["step"], "performance-analysis")
+        self.assertEqual(run["status"], "ready")
+        self.assertEqual(run["next_review_at"], future)
+        self.assertTrue(learning_budget(run)["reached"])
+
+    def test_missing_or_revised_learning_counter_is_not_zero(self):
+        run = self.learning_run()
+        entry = run["campaign_ledger"]["99"]
+        entry["spent_since_start_minor"] = 9000  # Below saved baseline.
+        self.assertIsNone(learning_budget(run)["spent_minor"])
+        entry.update(spent_since_start_minor=90000, accounting_issue="Provider revision needs reconciliation")
+        self.assertFalse(learning_budget(run)["reached"])
+        entry.pop("accounting_issue")
+        run["records"]["strategy-development"]["data"]["learning_baseline"]["campaign_id"] = "98"
+        self.assertIsNone(learning_budget(run)["spent_minor"])
+
+    def test_learning_baseline_comes_from_state_not_model_output(self):
+        run = self.learning_run()
+        strategy = run["records"]["strategy-development"]["data"]
+        strategy["learning_baseline"] = {"campaign_id": "99", "spent_since_start_minor": 0}
+        capture_learning_baseline(run, strategy)
+        self.assertEqual(strategy["learning_baseline"]["spent_since_start_minor"], 10000)
+        run["campaign_ledger"].clear()
+        capture_learning_baseline(run, strategy)
+        self.assertNotIn("learning_baseline", strategy)
+
+    def test_legacy_window_exposure_is_a_scoped_lower_bound(self):
+        run = self.learning_run()
+        strategy = run["records"]["strategy-development"]["data"]
+        strategy.pop("learning_baseline")
+        strategy["created_at"] = (now()-timedelta(days=20)).isoformat()
+        strategy["criteria"]["learning_spend_minor"] = 30000
+        meta = run["review_evidence"]["meta"]["current"]
+        meta["rows"]["campaign"][0]["campaign_id"] = "99"
+        self.assertTrue(learning_budget(run)["lower_bound"])
+        self.assertTrue(learning_budget(run)["reached"])
+        meta["rows"]["campaign"][0]["campaign_id"] = "98"
+        self.assertFalse(learning_budget(run)["reached"])
+        meta["rows"]["campaign"][0]["campaign_id"] = "99"
+        strategy["created_at"] = stamp()
+        self.assertIsNone(learning_budget(run)["spent_minor"])
+
+    def test_purchase_review_eligibility_uses_local_clean_day_and_lag(self):
+        run = self.learning_run()
+        run["last_material_change_at"] = "2026-11-21T20:00:00+00:00"  # 22 Nov in India.
+        run["review_evidence"]["account_timezone"] = "Asia/Kolkata"
+        run["records"]["strategy-development"]["data"]["criteria"]["lag_days"] = 2
+        timing = review_timing(run)
+        self.assertEqual(timing["first_clean_day"], "2026-11-23")
+        self.assertEqual(timing["earliest_purchase_review_at"], "2026-11-26T00:00:00+05:30")
+        run["campaign_ledger"]["99"]["first_delivery_on"] = "2026-11-24"
+        self.assertEqual(review_timing(run)["first_clean_day"], "2026-11-25")
+
+    def test_logs_show_learning_exposure_and_agent_owned_risk_review(self):
+        run = self.learning_run()
+        run["campaign_ledger"]["99"].update(spent_since_start_minor=70000, baseline=None,
+            launch_verified_at=stamp(), month=now().strftime("%Y-%m"), spent_month_minor=70000)
+        run.update(status="monitoring", next_review_at=(now()+timedelta(days=1)).isoformat())
+        update = describe(run)
+        self.assertEqual(update["when"], "Now")
+        self.assertEqual(update["owner"], "agent")
+        self.assertIsNone(update["question"])
+        log = render(self.store, run)
+        self.assertIn("## Bounded learning", log)
+        self.assertIn("Allowance reached: agent decision required now", log)
+        self.assertIn("Earliest clean purchase review", log)
+
+    def test_launch_anchors_learning_and_additions_do_not_renew_it(self):
+        self.reach_build()
+        strategy = self.run["records"]["strategy-development"]["data"]
+        strategy["criteria"]["learning_spend_minor"] = 60000
+        self.run.update(proposal=None, status="ready")
+        self.store.save(self.run, "fixture_learning_allowance", {})
+        self.run = prepare(self.store, self.run, self.client)
+        self.approve(); self.execute(); self.launch()
+        baseline = deepcopy(self.run["records"]["strategy-development"]["data"]["learning_baseline"])
+        self.assertEqual(baseline["campaign_id"], self.run["meta"]["id"])
+        self.assertEqual(baseline["spent_since_start_minor"], 0)
+        from meta_ads.ledger import mark_launched
+        mark_launched(self.run, {"campaign_id": self.run["meta"]["id"], "launch_verified_at": stamp()})
+        self.assertEqual(self.run["records"]["strategy-development"]["data"]["learning_baseline"], baseline)
+
+    def test_risk_pause_executes_through_standing_authority_and_readback(self):
+        run = self.learning_run()
+        brand = self.attach_brand()
+        brand["policy"]["management_authority"] = {"daily_minor": 30000, "monthly_minor": 3000000,
+            "reference": "Actual management authority", "approved_at": stamp()}
+        run["campaign_ledger"]["99"]["spent_since_start_minor"] = 70000
+        run.pop("review_evidence")
+        run["request"]["facts"]["tracking"]["purchase_verified"] = False
+        self.client.remote["99"] = {"id": "99", "name": NAME, "edge": "campaigns", "objective": "OUTCOME_SALES",
+            "configured_status": "ACTIVE", "effective_status": "ACTIVE", "daily_budget": 30000}
+        run.update(proposal=None, status="ready", group="optimize", step="optimization-decision")
+        decision_data = {"decision": "PAUSE", "target_id": "99", "rationale": "Contain the reached learning allowance; purchase measurement remains inconclusive.",
+                         "next_review_on": now().date().isoformat()}
+        run["records"]["optimization-decision"] = {"data": decision_data}
+        decision(run, decision_data)
+        self.store.save(run, "fixture_risk_pause", {})
+        self.run = prepare(self.store, run, self.client)
+        self.assertEqual(self.run["status"], "approved")
+        self.execute()
+        self.assertEqual(self.run["status"], "monitoring")
+        self.assertIn("management_pause", self.run)
+        self.assertEqual(self.run["last_receipt"]["operation"], "pause")
+        self.assertEqual(self.client.posts, [("99", {"status": "PAUSED"})])

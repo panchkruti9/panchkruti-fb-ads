@@ -1,11 +1,11 @@
 ---
 name: optimization-decision
-description: "Choose the next action for the current strategy using a mature result or a verified operational issue."
+description: "Choose the next strategy action from purchase evidence, a verified operational issue or the recorded learning exposure."
 ---
 
 # Optimization Decision
 
-Choose the next action for the current strategy using a mature result or a verified operational issue.
+Choose the next strategy action from purchase evidence, a verified operational issue or the recorded learning exposure. Keep a purchasing verdict separate from a financial risk decision.
 
 Read [the practical decision guide](references/decision-guide.md) for the method, evidence sources, tradeoffs and examples. Apply the [shared decision method](../meta-ads/references/decision-method.md) and [brand policy](../meta-ads/references/policy.md). Use the current run's exact product, account, authority and previous results.
 

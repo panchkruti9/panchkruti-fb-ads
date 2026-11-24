@@ -276,6 +276,10 @@ def profitable_window(window, economics):
 
 
 def verified_stop(run, target_id):
+    from .assessment import learning_budget
+    # Limiting financial exposure does not require declaring purchase failure.
+    if target_id == run["meta"]["id"] and learning_budget(run)["reached"]:
+        return True
     request = run["request"]
     budget = run.get("review_evidence", {}).get("account_budget") or {}
     rules = policy(request.get("brand"))
@@ -409,6 +413,8 @@ def submit(store, run, output):
         data["campaign"] = run.get("planned_name", run["request"]["name"])
         data["execution_status"] = "current"
         data["research_sources"] = [ref for key in GROUPS["research"][:-1] for ref in run["records"][key]["evidence"]]
+        from .assessment import capture_learning_baseline
+        capture_learning_baseline(run, data)
         if data.get("contract_version") == 2:
             run.pop("upgrade_assessment", None)
             run.pop("strategy_reconsideration", None)
@@ -459,7 +465,9 @@ def submit(store, run, output):
 def ready_review(store, run, *, force=False):
     checked = now()
     require(run["status"] == "monitoring", "Only a monitoring campaign can start another review.")
-    if not force and run["next_review_at"] and parse_time(run["next_review_at"]) > checked:
+    from .assessment import learning_budget
+    risk_due = learning_budget(run)["reached"] and not (run.get("management_pause") or run.get("budget_pause"))
+    if not force and not risk_due and run["next_review_at"] and parse_time(run["next_review_at"]) > checked:
         return run
     due = date.fromisoformat(run["records"]["strategy-development"]["data"]["next_review_on"])
     # A due date prompts reconsideration; it does not invalidate unchanged research.

@@ -6,6 +6,8 @@ This is the system's operating method. Account settings and current provider cap
 
 Continue within authority when the result is immature, underexposed or meeting the strategy. Set a real next review from the complete window and lag; do not ask the owner whether to perform every routine check.
 
+Check `evidence_assessment.learning_budget` before choosing HOLD. A reached allowance needs an agent-owned risk decision now even when purchase maturity is false. Use PAUSE on the enrolled campaign to contain verified exposure, or record the changed question and next bounded allowance through Strategy Development within existing authority. Do not describe a risk pause as a proven performance loser. The existing paused state does not end management; diagnose measurement or prepare the supported next test.
+
 ## Fix or test
 
 Act on a verified operational problem promptly. For a performance verdict use a comparable window and diagnosis; a documented planned challenger can be prepared separately. A tracked zero-order window can justify a fresh test without a fabricated CPA ceiling; attribution uncertainty still needs investigation.

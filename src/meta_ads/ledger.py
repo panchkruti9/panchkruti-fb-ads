@@ -81,6 +81,14 @@ def mark_launched(run, receipt):
         entry["launch_verified_at"] = entry.get("launch_verified_at") or receipt.get("launch_verified_at") or stamp()
         # No spend is fabricated between the baseline and verification. Read Insights next.
         entry["last_configured_status"] = "ACTIVE"
+        strategy = run.get("records", {}).get("strategy-development", {}).get("data", {})
+        if (entry.get("baseline") and strategy.get("criteria", {}).get("learning_spend_minor")
+                and strategy.get("campaign") == entry["name"]
+                and (strategy.get("learning_baseline") or {}).get("campaign_id") != entry["campaign_id"]):
+            # Zero is the origin of this verified, pre-start-deducted counter,
+            # not an assumption that the campaign has spent nothing at readback.
+            strategy["learning_baseline"] = {"campaign_id": entry["campaign_id"],
+                "spent_since_start_minor": 0, "observed_at": entry["baseline"]["observed_at"]}
     control = receipt.get("spend_control")
     if control:
         run["account_control"] = {"spend_cap": str(control["spend_cap_minor"]),

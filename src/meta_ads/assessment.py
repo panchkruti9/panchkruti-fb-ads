@@ -1,9 +1,88 @@
 """Explain evidence readiness without equating missing attribution with zero demand."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from .meta import account_zone, policy
 from .state import comparison_anchor, now, parse_time
+
+
+def capture_learning_baseline(run, strategy):
+    """Anchor a new strategy to an existing verified campaign counter."""
+    strategy.pop("learning_baseline", None)  # Model output is not a provider counter.
+    campaign = run.get("meta", {}).get("id")
+    entry = run.get("campaign_ledger", {}).get(campaign, {})
+    spent = entry.get("spent_since_start_minor")
+    if (strategy.get("criteria", {}).get("learning_spend_minor") and campaign
+            and type(spent) is int and spent >= 0 and entry.get("last_observed_at")
+            and not entry.get("accounting_issue")):
+        strategy["learning_baseline"] = {"campaign_id": campaign, "spent_since_start_minor": spent,
+                                         "observed_at": entry["last_observed_at"]}
+
+
+def learning_budget(run):
+    """Track a strategy's exposure separately from lagged purchase evidence.
+
+    A recorded campaign ledger delta includes immature dates. Legacy strategies
+    without that baseline may only report the observed window as a lower bound.
+    Neither source proves that an ad failed or authorizes extra spending.
+    """
+    strategy = run.get("records", {}).get("strategy-development", {}).get("data", {})
+    limit = strategy.get("criteria", {}).get("learning_spend_minor")
+    result = {"limit_minor": limit, "spent_minor": None, "remaining_minor": None,
+              "reached": False, "basis": "No learning allowance recorded." if limit is None else "Exposure not yet verified.",
+              "observed_at": None, "lower_bound": False}
+    if type(limit) is not int or limit <= 0:
+        return result
+    campaign = run.get("meta", {}).get("id")
+    baseline = strategy.get("learning_baseline") or {}
+    entry = run.get("campaign_ledger", {}).get(campaign, {})
+    spent = entry.get("spent_since_start_minor")
+    excluded = baseline.get("spent_since_start_minor")
+    if (baseline.get("campaign_id") == campaign and campaign and not entry.get("accounting_issue")
+            and type(spent) is int and type(excluded) is int and 0 <= excluded <= spent
+            and entry.get("last_observed_at") and baseline.get("observed_at")
+            and parse_time(entry["last_observed_at"]) >= parse_time(baseline["observed_at"])):
+        result.update(spent_minor=spent - excluded, observed_at=entry["last_observed_at"],
+                      basis="Campaign spending since the strategy's saved ledger baseline, including reporting lag.")
+    else:
+        # An older, partial or revised ledger must not silently reset the bound.
+        report = run.get("review_evidence", {})
+        meta = report.get("meta", {}).get("current") or {}
+        rows = meta.get("rows", {}).get("campaign", [])
+        created = strategy.get("created_at")
+        try:
+            start, end = date.fromisoformat(meta["start"]), date.fromisoformat(meta["end"])
+            zone = account_zone(report.get("account_timezone", "UTC"))
+            if (campaign and created and start <= end < now().astimezone(zone).date()
+                    and start > parse_time(created).astimezone(zone).date()
+                    and len(rows) == 1 and rows[0].get("campaign_id") == campaign):
+                amount = Decimal(str(rows[0]["spend"])) * policy(run["request"].get("brand"))["minor_per_unit"]
+                if amount.is_finite() and amount >= 0 and amount == amount.to_integral_value():
+                    result.update(spent_minor=int(amount), observed_at=meta.get("observed_at"), lower_bound=True,
+                                  basis="Post-strategy campaign reporting window only; additional exposure may be outside this window.")
+        except (KeyError, TypeError, ValueError, InvalidOperation):
+            pass
+    if result["spent_minor"] is not None:
+        result.update(remaining_minor=max(0, limit - result["spent_minor"]), reached=result["spent_minor"] >= limit)
+    return result
+
+
+def review_timing(run):
+    """Earliest clean account-local date, rather than a universal wait period."""
+    criteria = run.get("records", {}).get("strategy-development", {}).get("data", {}).get("criteria", {})
+    changed = comparison_anchor(run)
+    if not changed:
+        return {}
+    report = run.get("review_evidence", {})
+    entry = run.get("campaign_ledger", {}).get(run.get("meta", {}).get("id"), {})
+    zone = account_zone(report.get("account_timezone") or (entry.get("baseline") or {}).get("timezone", "UTC"))
+    first = parse_time(changed).astimezone(zone).date()
+    if entry.get("first_delivery_on"):
+        first = max(first, date.fromisoformat(entry["first_delivery_on"]))
+    first += timedelta(days=1)
+    eligible = first + timedelta(days=1 + criteria.get("lag_days", 0))
+    return {"first_clean_day": first.isoformat(),
+            "earliest_purchase_review_at": datetime.combine(eligible, datetime.min.time(), tzinfo=zone).isoformat(timespec="seconds")}
 
 
 def assess(run):
@@ -13,7 +92,9 @@ def assess(run):
     shop = report.get("shopify", {}).get("current") or {}
     result = {"state": "inconclusive", "reason": "Comparable Meta and Shopify evidence is not available.",
               "spend_minor": None, "matched_orders": None, "product_orders": None,
-              "matching_coverage": None, "decision_ready": False, "next_condition": "Collect scoped reporting evidence."}
+              "matching_coverage": None, "decision_ready": False, "next_condition": "Collect scoped reporting evidence.",
+              "learning_budget": learning_budget(run), **review_timing(run)}
+    result["risk_review_required"] = result["learning_budget"]["reached"]
     if not report and run.get("live_since") and run.get("status") == "monitoring":
         due = run.get("next_review_at")
         pending = bool(due and parse_time(due) > now())
@@ -64,7 +145,10 @@ def assess(run):
                 or start <= parse_time(changed).astimezone(account_zone(report.get("account_timezone", "UTC"))).date()
                 or (first_delivery and start <= date.fromisoformat(first_delivery))):
             return {**result, "state": "maturing", "reason": "The comparable post-delivery window or reporting lag is incomplete.",
-                    "next_condition": "Wait for complete comparable dates and the recorded reporting lag."}
+                    "next_condition": ("Review the reached learning allowance now; purchase evidence is still immature."
+                                       if result["risk_review_required"] else
+                                       "Collect complete comparable dates from " + result.get("earliest_purchase_review_at", "the next clean reporting window")
+                                       + "; a purchase verdict also needs useful exposure and measurement.")}
         if shop.get("pending_journey", 0):
             return {**result, "reason": "Order journeys are still pending; missing matches are not zero sales."}
         if orders == 0 and type(product_orders) is int and product_orders > 0:

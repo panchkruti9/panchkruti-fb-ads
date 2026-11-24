@@ -41,6 +41,10 @@ With missing costs, use existing approved spending for bounded learning. Retriev
 
 `criteria.learning_spend_minor` is the agent's documented exposure/loss bound for the current question; it is not a fabricated CPA or extra spending authorization. Fit it inside existing daily/monthly authority and the selected observation period. Reaching it requires a decision, not automatic additional spending. If continuing an inconclusive test, record why the next bounded question merits the remaining authority.
 
+Read `evidence_assessment.learning_budget` separately from purchase maturity. New strategies retain the exact managed campaign's last verified spending baseline; subsequent ledger readings include spending on dates whose purchase reporting is still immature. Creative additions, reporting lag and daily reviews do not reset this counter. Older strategies without a baseline can expose only a clearly labeled post-strategy reporting-window lower bound; missing accounting stays unknown. The system owns these counters; do not supply a made-up `learning_baseline` in a skill result.
+
+When `risk_review_required` is true, diagnose and choose the next bounded action at the current connected-agent wake. A PAUSE of that campaign can limit verified exposure even if purchase tracking or reporting is inconclusive. It does not establish that the creative, audience or strategy failed. It follows the same operator authorization and Meta readback as other pauses. To continue learning, save a reasoned next question and its allowance within existing authority; do not silently renew the same inconclusive test or ask the client for another technical test-budget form.
+
 `evidence_assessment` separates underexposure, maturation, usable evidence, inconclusive measurement and operational faults. Low delivery does not establish a loser. Zero qualified first-time buyers can reflect missing buyer history. Unmatched orders do not prove the ads produced those sales, and do not prove there were no sales. Use Meta attribution, Shopify outcomes and their coverage side by side.
 
 The default scaling assessment uses two independent mature windows. A strategy can select `scale_windows: 1` only with a dated `repeatability_reference`, at least twice its ordinary qualified-order minimum, verified contribution and the remaining scaling checks. Neither route establishes causal incrementality. Choose the evidence design before looking for a favorable result.
@@ -64,6 +68,8 @@ Use `decision: TEST`, `test_kind: planned-challenger`, and `exposure_plan` with 
 | Repeatable positive contribution | Marginal performance, stock, fulfillment and remaining authority | Redistribute within authority or prepare a concrete increase |
 
 Operational checks can happen before a purchase verdict. Performance reviews use actual delivery, exposure and lag. window_days is a target lookback; earlier complete clean dates can support a decision when exposure is informative. Compare equal periods and label uncertainty rather than claiming significance from repeated daily inspection. A strategy review asks whether evidence changed the buying hypothesis; a calendar date alone does not erase research. Dayparting needs adequate time-zone-specific purchase evidence. Learning Limited is context, not a reason to abandon Purchase or duplicate campaigns.
+
+`earliest_purchase_review_at` is the first account-local midnight after one complete clean delivery day plus the saved reporting lag. It is an eligibility date, not proof of sufficient purchases or exposure. Use the later of actual launch/material/portfolio changes and first observed delivery when identifying that first clean day. The log shows this date alongside the next scheduled agent review; repair and spending-risk decisions can happen sooner.
 
 ## Creative ownership and approval
 

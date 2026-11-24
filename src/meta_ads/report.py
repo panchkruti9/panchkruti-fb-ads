@@ -103,11 +103,15 @@ def describe(run):
     done = labels.get(receipt["operation"], "Verified the Meta operation.") if receipt else "Saved research and decisions are listed below."
     from .assessment import assess
     assessment = assess(run)
+    if state == "monitoring" and assessment["risk_review_required"] and not (run.get("budget_pause") or run.get("management_pause")):
+        action, when, owner = "Review the reached learning allowance and choose a bounded next action or verified pause.", "Now", "agent"
     rationale = run.get("records", {}).get("optimization-decision", {}).get("data", {}).get("rationale")
     freshness = run.get("review_evidence", {}).get("meta", {}).get("current", {}).get("observed_at")
     return {"status": public, "current_task": name, "done": done, "next_action": action,
             "when": when, "owner": owner, "question": question, "attention": run.get("blockers", []),
             "reason": rationale or assessment["reason"], "due_condition": assessment["next_condition"],
+            "learning_budget": assessment["learning_budget"],
+            "earliest_purchase_review_at": assessment.get("earliest_purchase_review_at"),
             "data_freshness": freshness, "evidence_state": assessment["state"], "delivery": delivery_summary(run),
             "execution_condition": "At the next available connected-agent wake after the review becomes eligible."}
 
@@ -143,6 +147,15 @@ def render(store, run):
                   f"- Matched net receipts: {money(run, business['matched_net_receipts_minor']) if business['matched_net_receipts_minor'] is not None else 'Unknown'}; contribution after ads: {money(run, business['contribution_after_ads_minor']) if business['contribution_after_ads_minor'] is not None else 'Unknown — incomplete economics'}. This is not measured incremental profit.",
                   f"- Current buying question: {clean(contract.get('test_question', 'See saved strategy; not yet recorded in the new decision contract.'))}",
                   f"- Next decision condition: {clean(status['due_condition'])}", ""])
+    learning = status["learning_budget"]
+    if learning["limit_minor"] is not None:
+        lines.extend(["## Bounded learning", "",
+                      f"- Recorded allowance: {money(run, learning['limit_minor'])}; verified exposure: {money(run, learning['spent_minor']) if learning['spent_minor'] is not None else 'Unknown'}; remaining: {money(run, learning['remaining_minor']) if learning['remaining_minor'] is not None else 'Unknown'}.",
+                      f"- Basis: {clean(learning['basis'])} Observed {local_time(learning['observed_at'], zone)}.",
+                      "- Allowance reached: agent decision required now. This does not prove the ad failed." if learning['reached'] else
+                      "- The allowance limits the learning question; it is not additional spending authority or a profitable CPA target.", ""])
+    if status.get("earliest_purchase_review_at"):
+        lines.extend([f"**Earliest clean purchase review** — {local_time(status['earliest_purchase_review_at'], zone)}. Useful exposure and verified measurement are still required; operational checks can happen sooner.", ""])
     if run.get("strategy_cycles"):
         lines.extend(["## Previous strategy learning", ""])
         for cycle in run["strategy_cycles"]:
