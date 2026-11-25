@@ -426,7 +426,9 @@ def submit(store, run, output):
                 run["outcome"] = "RECREATE"
             else:
                 schedule(run)
-                run["next_review_at"] = stamp()
+                # Review the revised strategy now without moving the daily
+                # cadence past the connected agent's scheduled wake.
+                group(run, "optimize")
         else:
             group(run, "create")
     elif step == "activation-check":

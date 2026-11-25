@@ -92,6 +92,24 @@ class ManagementTest(unittest.TestCase):
         from meta_ads.state import parse_time
         self.assertEqual(parse_time(self.run["next_review_at"]), (checked + timedelta(hours=23)).replace(microsecond=0))
 
+    def test_strategy_continuation_reviews_now_without_delaying_daily_wake(self):
+        from meta_ads.workflow import submit
+        self.reach_build()
+        checked = now().replace(hour=6, minute=0, second=0, microsecond=0)
+        original = deepcopy(self.run["records"]["strategy-development"]["data"])
+        original.update(cycle_action="continue", next_review_on=(checked.date()+timedelta(days=2)).isoformat())
+        self.run.update(group="research", step="strategy-development", status="ready", proposal=None,
+                        strategy_refresh=True, next_review_at=checked.replace(hour=0).isoformat())
+        with patch("meta_ads.workflow.now", return_value=checked):
+            self.run=submit(self.store, self.run, valid_result("strategy-development", original))
+            self.assertEqual(self.run["status"], "ready")
+            self.assertEqual(self.run["step"], "performance-analysis")
+            expected=(checked+timedelta(days=1)).replace(hour=0).isoformat()
+            self.assertEqual(self.run["next_review_at"], expected)
+            self.assertEqual(self.run["schedules"]["performance_review_at"], expected)
+            schedule(self.run)
+        self.assertEqual(self.run["next_review_at"], expected)
+
     def test_review_date_alone_preserves_strategy_and_research(self):
         self.reach_build(); self.approve(); self.execute(); self.launch()
         previous = deepcopy(self.run["records"]["strategy-development"])
